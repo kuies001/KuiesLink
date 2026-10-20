@@ -218,16 +218,16 @@ class UrlCleanerTest {
         assertEquals("https://www.instagram.com/reel/DcClyQgikR4/", result.cleanedUrl)
         assertEquals(listOf("exln"), result.removedParameters.map { it.name })
         assertEquals("Yjg5MXAyMzZid2l0", result.removedParameters.single().value)
-        assertEquals("Instagram", result.removedParameters.single().ruleSource)
+        assertEquals("Instagram Reel", result.removedParameters.single().ruleSource)
     }
 
     @Test
     fun instagramReelExlnAndIgshAreBothRemoved() {
         val result = cleaner.clean(
-            "https://www.instagram.com/reel/DcClyQgikR4/?exln=Yjg5MXAy&igsh=MW9xZ2F0&img_index=2",
+            "https://www.instagram.com/reel/DcClyQgikR4/?exln=Yjg5MXAy&igsh=MW9xZ2F0",
         )
 
-        assertEquals("https://www.instagram.com/reel/DcClyQgikR4/?img_index=2", result.cleanedUrl)
+        assertEquals("https://www.instagram.com/reel/DcClyQgikR4/", result.cleanedUrl)
         assertEquals(2, result.removedCount)
         assertEquals(listOf("exln", "igsh"), result.removedParameters.map { it.name })
     }
@@ -313,5 +313,131 @@ class UrlCleanerTest {
             CleaningStatus.UNCHANGED,
             cleaner.clean("https://example.com/l.php?u=x").status,
         )
+    }
+
+    @Test
+    fun instagramReelVrflRemovesTheWholeQuery() {
+        val result = cleaner.clean("https://www.instagram.com/reel/DeuAqoizRW9/?vrfl=djBqNnQzZ2J6Y2Fu")
+
+        assertEquals(CleaningStatus.CLEANED, result.status)
+        assertEquals("https://www.instagram.com/reel/DeuAqoizRW9/", result.cleanedUrl)
+        assertEquals(listOf("vrfl"), result.removedParameters.map { it.name })
+        assertEquals("djBqNnQzZ2J6Y2Fu", result.removedParameters.single().value)
+        assertEquals("Instagram Reel", result.removedParameters.single().ruleSource)
+    }
+
+    @Test
+    fun instagramReelRemovesEveryArbitraryParameter() {
+        val result = cleaner.clean(
+            "https://www.instagram.com/reel/ABC123/?vrfl=a&exln=b&igsh=c&whatever=1",
+        )
+
+        assertEquals("https://www.instagram.com/reel/ABC123/", result.cleanedUrl)
+        assertEquals(4, result.removedCount)
+        assertEquals(
+            listOf("vrfl", "exln", "igsh", "whatever"),
+            result.removedParameters.map { it.name },
+        )
+    }
+
+    @Test
+    fun instagramReelDuplicateParametersCountIndividually() {
+        val result = cleaner.clean(
+            "https://www.instagram.com/reel/ABC123/?vrfl=one&vrfl=two&igsh=three",
+        )
+
+        assertEquals("https://www.instagram.com/reel/ABC123/", result.cleanedUrl)
+        assertEquals(3, result.removedCount)
+        assertEquals(listOf("one", "two", "three"), result.removedParameters.map { it.value })
+    }
+
+    @Test
+    fun instagramReelKeepsFragmentWhenClearingQuery() {
+        val result = cleaner.clean("https://www.instagram.com/reel/ABC123/?vrfl=abc#comments")
+
+        assertEquals("https://www.instagram.com/reel/ABC123/#comments", result.cleanedUrl)
+        assertEquals(1, result.removedCount)
+    }
+
+    @Test
+    fun instagramReelWithoutQueryIsUnchanged() {
+        val url = "https://www.instagram.com/reel/DeuAqoizRW9/"
+        val result = cleaner.clean(url)
+
+        assertEquals(CleaningStatus.UNCHANGED, result.status)
+        assertEquals(url, result.cleanedUrl)
+        assertEquals(0, result.removedCount)
+    }
+
+    @Test
+    fun instagramReelWithOnlyAQuestionMarkIsUnchanged() {
+        val url = "https://www.instagram.com/reel/ABC123/?"
+        val result = cleaner.clean(url)
+
+        assertEquals(CleaningStatus.UNCHANGED, result.status)
+        assertEquals(url, result.cleanedUrl)
+        assertEquals(0, result.removedCount)
+    }
+
+    @Test
+    fun instagramReelWithoutTrailingSlashKeepsItsPath() {
+        val result = cleaner.clean("https://www.instagram.com/reel/DeuAqoizRW9?vrfl=abc")
+
+        assertEquals("https://www.instagram.com/reel/DeuAqoizRW9", result.cleanedUrl)
+        assertEquals(1, result.removedCount)
+    }
+
+    @Test
+    fun instagramReelWithExtraPathSegmentsDoesNotClearTheWholeQuery() {
+        assertEquals(
+            CleaningStatus.UNCHANGED,
+            cleaner.clean("https://www.instagram.com/reel/ABC123/comments?vrfl=abc").status,
+        )
+
+        // The existing name-based rule still applies on that non-canonical path.
+        val result = cleaner.clean("https://www.instagram.com/reel/ABC123/comments?exln=x&vrfl=y")
+        assertEquals("https://www.instagram.com/reel/ABC123/comments?vrfl=y", result.cleanedUrl)
+        assertEquals(1, result.removedCount)
+    }
+
+    @Test
+    fun instagramStoriesKeepUnknownQueryParameters() {
+        val url = "https://www.instagram.com/stories/highlights/123/?vrfl=abc&hl=zh-tw"
+        val result = cleaner.clean(url)
+
+        assertEquals(CleaningStatus.UNCHANGED, result.status)
+        assertEquals(url, result.cleanedUrl)
+    }
+
+    @Test
+    fun reelLookalikeHostsAreNotCleared() {
+        listOf(
+            "https://fakeinstagram.com/reel/ABC123/?vrfl=abc",
+            "https://instagram.com.evil.example/reel/ABC123/?vrfl=abc",
+        ).forEach { url ->
+            val result = cleaner.clean(url)
+            assertEquals("url: <$url>", CleaningStatus.UNCHANGED, result.status)
+            assertEquals("url: <$url>", url, result.cleanedUrl)
+        }
+    }
+
+    @Test
+    fun anotherSiteWithAReelPathIsNotCleared() {
+        val url = "https://example.com/reel/ABC123/?vrfl=abc"
+        val result = cleaner.clean(url)
+
+        assertEquals(CleaningStatus.UNCHANGED, result.status)
+        assertEquals(url, result.cleanedUrl)
+    }
+
+    @Test
+    fun instagramReelCleaningIsIdempotent() {
+        val first = cleaner.clean("https://www.instagram.com/reel/ABC123/?vrfl=a&exln=b#top")
+        val second = cleaner.clean(first.cleanedUrl)
+
+        assertEquals("https://www.instagram.com/reel/ABC123/#top", first.cleanedUrl)
+        assertEquals(first.cleanedUrl, second.cleanedUrl)
+        assertEquals(CleaningStatus.UNCHANGED, second.status)
+        assertEquals(0, second.removedCount)
     }
 }

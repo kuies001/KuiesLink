@@ -58,6 +58,18 @@ class MainActivityTest {
     }
 
     @Test
+    fun instagramReelQueryIsFullyRemovedEndToEnd() {
+        composeRule.onNode(hasSetTextAction()).performClick()
+            .performTextInput("https://www.instagram.com/reel/DeuAqoizRW9/?vrfl=djBqNnQzZ2J6Y2Fu")
+
+        composeRule.onNodeWithText("清理網址").performScrollTo().performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("已移除 1 個追蹤參數").assertIsDisplayed()
+        composeRule.onNodeWithText("https://www.instagram.com/reel/DeuAqoizRW9/").assertIsDisplayed()
+    }
+
+    @Test
     fun multipleUrlsAreListedInsteadOfGuessed() {
         composeRule.onNode(hasSetTextAction()).performClick()
             .performTextInput("https://a.example/1 https://b.example/2")

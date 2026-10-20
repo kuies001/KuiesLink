@@ -33,6 +33,10 @@ class UrlCleaner(
             return CleaningResult.unchanged(candidate, CleaningStatus.UNRESOLVED_WRAPPER, url.host)
         }
 
+        if (isInstagramReel(url) && url.parameters.isNotEmpty()) {
+            return clearInstagramReelQuery(candidate, url)
+        }
+
         if (url.parameters.isEmpty()) {
             return CleaningResult.unchanged(candidate, CleaningStatus.UNCHANGED, url.host)
         }
@@ -87,12 +91,53 @@ class UrlCleaner(
         }
     }
 
+    /**
+     * Instagram Reel share links: the reel is identified entirely by `/reel/{id}` in the path, so
+     * every query parameter on that canonical path is a share artefact. Instagram keeps inventing
+     * new share tokens (igsh, exln, vrfl, ...), so the whole query is dropped instead of chasing
+     * names. Other Instagram paths (/p/, /stories/, /accounts/, /direct/) keep the conservative
+     * name-based rules.
+     *
+     * The path must be exactly `/reel/{id}` or `/reel/{id}/`: extra path segments do not qualify.
+     * Query placement, fragment separation and encoding are handled by [HttpUrl], never by
+     * splitting the raw string on '?'.
+     */
+    private fun isInstagramReel(url: HttpUrl): Boolean {
+        if (url.host != "instagram.com" && !url.host.endsWith(".instagram.com")) return false
+        if (!url.path.startsWith("/reel/")) return false
+
+        val remainder = url.path.removePrefix("/reel/")
+        val id = remainder.removeSuffix("/")
+        return id.isNotEmpty() && id.none { it == '/' } && REEL_ID_PATTERN.matches(id)
+    }
+
+    private fun clearInstagramReelQuery(candidate: String, url: HttpUrl): CleaningResult {
+        val removed = url.parameters.map { parameter ->
+            RemovedParameter(
+                name = PercentCodec.decode(parameter.rawName, plusAsSpace = false),
+                value = parameter.rawValue?.let { PercentCodec.decode(it, plusAsSpace = true) },
+                raw = parameter.raw,
+                ruleSource = "Instagram Reel",
+            )
+        }
+        return CleaningResult(
+            originalUrl = candidate,
+            cleanedUrl = url.rebuild(emptyList()),
+            status = CleaningStatus.CLEANED,
+            removedParameters = removed,
+            host = url.host,
+        )
+    }
+
     private fun isSensitiveParameter(rawName: String): Boolean {
         val name = PercentCodec.decode(rawName, plusAsSpace = false).lowercase()
         return SENSITIVE_NAME_HINTS.any { name.contains(it) }
     }
 
     private companion object {
+        /** Shortcodes are alphanumeric; a generous length range still rejects junk. */
+        val REEL_ID_PATTERN = Regex("[A-Za-z0-9_-]{3,64}")
+
         val SENSITIVE_NAME_HINTS = listOf(
             "token",
             "secret",
