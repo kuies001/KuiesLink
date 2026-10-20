@@ -243,13 +243,14 @@ class UrlCleanerTest {
     }
 
     @Test
-    fun instagramKeepsItsFunctionalParameters() {
+    fun instagramPostKeepsImgIndexAndDropsOtherParameters() {
         val result = cleaner.clean(
             "https://www.instagram.com/p/CxYz123/?img_index=2&exln=token&hl=zh-tw",
         )
 
-        assertEquals("https://www.instagram.com/p/CxYz123/?img_index=2&hl=zh-tw", result.cleanedUrl)
-        assertEquals(listOf("exln"), result.removedParameters.map { it.name })
+        assertEquals("https://www.instagram.com/p/CxYz123/?img_index=2", result.cleanedUrl)
+        assertEquals(2, result.removedCount)
+        assertEquals(listOf("exln", "hl"), result.removedParameters.map { it.name })
     }
 
     @Test
@@ -436,6 +437,147 @@ class UrlCleanerTest {
         val second = cleaner.clean(first.cleanedUrl)
 
         assertEquals("https://www.instagram.com/reel/ABC123/#top", first.cleanedUrl)
+        assertEquals(first.cleanedUrl, second.cleanedUrl)
+        assertEquals(CleaningStatus.UNCHANGED, second.status)
+        assertEquals(0, second.removedCount)
+    }
+
+    @Test
+    fun instagramPostCplkIsRemoved() {
+        val result = cleaner.clean("https://www.instagram.com/p/DeoNZZmCde8/?cplk=Zmg3OGxybHA2aHow")
+
+        assertEquals(CleaningStatus.CLEANED, result.status)
+        assertEquals("https://www.instagram.com/p/DeoNZZmCde8/", result.cleanedUrl)
+        assertEquals(listOf("cplk"), result.removedParameters.map { it.name })
+        assertEquals("Zmg3OGxybHA2aHow", result.removedParameters.single().value)
+        assertEquals("Instagram Post", result.removedParameters.single().ruleSource)
+    }
+
+    @Test
+    fun instagramPostRemovesEveryUnknownParameter() {
+        val result = cleaner.clean(
+            "https://www.instagram.com/p/ABC123/?cplk=a&vrfl=b&exln=c&whatever=1",
+        )
+
+        assertEquals("https://www.instagram.com/p/ABC123/", result.cleanedUrl)
+        assertEquals(4, result.removedCount)
+        assertEquals(
+            listOf("cplk", "vrfl", "exln", "whatever"),
+            result.removedParameters.map { it.name },
+        )
+    }
+
+    @Test
+    fun instagramPostKeepsOnlyImgIndex() {
+        val result = cleaner.clean("https://www.instagram.com/p/ABC123/?cplk=x&img_index=2")
+
+        assertEquals("https://www.instagram.com/p/ABC123/?img_index=2", result.cleanedUrl)
+        assertEquals(1, result.removedCount)
+        assertEquals(listOf("cplk"), result.removedParameters.map { it.name })
+    }
+
+    @Test
+    fun instagramPostKeepsFragment() {
+        val result = cleaner.clean("https://www.instagram.com/p/ABC123/?cplk=abc#comments")
+
+        assertEquals("https://www.instagram.com/p/ABC123/#comments", result.cleanedUrl)
+        assertEquals(1, result.removedCount)
+    }
+
+    @Test
+    fun instagramPostWithoutQueryIsUnchanged() {
+        val url = "https://www.instagram.com/p/DeoNZZmCde8/"
+        val result = cleaner.clean(url)
+
+        assertEquals(CleaningStatus.UNCHANGED, result.status)
+        assertEquals(url, result.cleanedUrl)
+        assertEquals(0, result.removedCount)
+    }
+
+    @Test
+    fun instagramPostWithOnlyAQuestionMarkIsUnchanged() {
+        val url = "https://www.instagram.com/p/ABC123/?"
+        val result = cleaner.clean(url)
+
+        assertEquals(CleaningStatus.UNCHANGED, result.status)
+        assertEquals(url, result.cleanedUrl)
+        assertEquals(0, result.removedCount)
+    }
+
+    @Test
+    fun instagramPostWithoutTrailingSlashKeepsItsPath() {
+        val result = cleaner.clean("https://www.instagram.com/p/DeoNZZmCde8?cplk=abc")
+
+        assertEquals("https://www.instagram.com/p/DeoNZZmCde8", result.cleanedUrl)
+        assertEquals(1, result.removedCount)
+    }
+
+    @Test
+    fun instagramPostWithExtraPathSegmentsDoesNotClearTheWholeQuery() {
+        assertEquals(
+            CleaningStatus.UNCHANGED,
+            cleaner.clean("https://www.instagram.com/p/ABC123/comments?cplk=abc").status,
+        )
+    }
+
+    @Test
+    fun instagramPostLookalikeHostsAreNotCleared() {
+        listOf(
+            "https://fakeinstagram.com/p/ABC123/?cplk=abc",
+            "https://instagram.com.evil.example/p/ABC123/?cplk=abc",
+        ).forEach { url ->
+            val result = cleaner.clean(url)
+            assertEquals("url: <$url>", CleaningStatus.UNCHANGED, result.status)
+            assertEquals("url: <$url>", url, result.cleanedUrl)
+        }
+    }
+
+    @Test
+    fun anotherSiteWithAPostPathIsNotCleared() {
+        val url = "https://example.com/p/ABC123/?cplk=abc"
+        val result = cleaner.clean(url)
+
+        assertEquals(CleaningStatus.UNCHANGED, result.status)
+        assertEquals(url, result.cleanedUrl)
+    }
+
+    @Test
+    fun instagramPostDuplicateParametersCountIndividually() {
+        val result = cleaner.clean(
+            "https://www.instagram.com/p/ABC123/?cplk=one&cplk=two&img_index=1",
+        )
+
+        assertEquals("https://www.instagram.com/p/ABC123/?img_index=1", result.cleanedUrl)
+        assertEquals(2, result.removedCount)
+        assertEquals(listOf("one", "two"), result.removedParameters.map { it.value })
+    }
+
+    @Test
+    fun instagramPostWithSensitiveParameterKeepsEverything() {
+        val url = "https://www.instagram.com/p/ABC123/?cplk=a&token=t&exln=e"
+        val result = cleaner.clean(url)
+
+        // A token-like parameter can be functional; the whole-query clear is skipped and the
+        // host-scoped exln rule is skipped too, so nothing is guessed away.
+        assertEquals(CleaningStatus.UNCHANGED, result.status)
+        assertEquals(url, result.cleanedUrl)
+        assertEquals(0, result.removedCount)
+    }
+
+    @Test
+    fun instagramReelStillClearsUnknownParameters() {
+        val result = cleaner.clean("https://www.instagram.com/reel/ABC123/?cplk=abc&img_index=2")
+
+        assertEquals("https://www.instagram.com/reel/ABC123/", result.cleanedUrl)
+        assertEquals(2, result.removedCount)
+    }
+
+    @Test
+    fun instagramPostCleaningIsIdempotent() {
+        val first = cleaner.clean("https://www.instagram.com/p/ABC123/?cplk=a&vrfl=b#top")
+        val second = cleaner.clean(first.cleanedUrl)
+
+        assertEquals("https://www.instagram.com/p/ABC123/#top", first.cleanedUrl)
         assertEquals(first.cleanedUrl, second.cleanedUrl)
         assertEquals(CleaningStatus.UNCHANGED, second.status)
         assertEquals(0, second.removedCount)

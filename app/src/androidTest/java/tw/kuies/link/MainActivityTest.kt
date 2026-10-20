@@ -70,6 +70,18 @@ class MainActivityTest {
     }
 
     @Test
+    fun instagramPostCplkIsRemovedEndToEnd() {
+        composeRule.onNode(hasSetTextAction()).performClick()
+            .performTextInput("https://www.instagram.com/p/DeoNZZmCde8/?cplk=Zmg3OGxybHA2aHow")
+
+        composeRule.onNodeWithText("清理網址").performScrollTo().performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("已移除 1 個追蹤參數").assertIsDisplayed()
+        composeRule.onNodeWithText("https://www.instagram.com/p/DeoNZZmCde8/").assertIsDisplayed()
+    }
+
+    @Test
     fun multipleUrlsAreListedInsteadOfGuessed() {
         composeRule.onNode(hasSetTextAction()).performClick()
             .performTextInput("https://a.example/1 https://b.example/2")

@@ -6,7 +6,8 @@ package tw.kuies.link.domain
  * Guarantees:
  *  - never throws: any failure returns the input untouched with [CleaningStatus.FAILED];
  *  - the path, fragment, authority, parameter order and original encoding are preserved;
- *  - a parameter is only dropped when the rule repository returns a matching rule;
+ *  - a parameter is only dropped by an explicit name rule, or as part of clearing a canonical
+ *    Instagram post/reel query;
  *  - URLs carrying functional/sensitive parameters (tokens, codes, signatures, ...) only lose
  *    unambiguous cross-site trackers, never host-scoped rules.
  */
@@ -35,6 +36,16 @@ class UrlCleaner(
 
         if (isInstagramReel(url) && url.parameters.isNotEmpty()) {
             return clearInstagramReelQuery(candidate, url)
+        }
+
+        val contentType = instagramContentType(url)
+        if (contentType == InstagramContentType.POST && url.parameters.isNotEmpty()) {
+            // Login / age-gate style parameters can be functional on a post; keep everything and
+            // fall through to the named rules instead of guessing.
+            val hasSensitiveParameter = url.parameters.any { isSensitiveParameter(it.rawName) }
+            if (!hasSensitiveParameter) {
+                return clearInstagramPostQuery(candidate, url)
+            }
         }
 
         if (url.parameters.isEmpty()) {
@@ -95,21 +106,15 @@ class UrlCleaner(
      * Instagram Reel share links: the reel is identified entirely by `/reel/{id}` in the path, so
      * every query parameter on that canonical path is a share artefact. Instagram keeps inventing
      * new share tokens (igsh, exln, vrfl, ...), so the whole query is dropped instead of chasing
-     * names. Other Instagram paths (/p/, /stories/, /accounts/, /direct/) keep the conservative
-     * name-based rules.
+     * names. Post links follow [clearInstagramPostQuery]; /stories/, /accounts/ and /direct/ keep
+     * the conservative name-based rules.
      *
      * The path must be exactly `/reel/{id}` or `/reel/{id}/`: extra path segments do not qualify.
      * Query placement, fragment separation and encoding are handled by [HttpUrl], never by
      * splitting the raw string on '?'.
      */
-    private fun isInstagramReel(url: HttpUrl): Boolean {
-        if (url.host != "instagram.com" && !url.host.endsWith(".instagram.com")) return false
-        if (!url.path.startsWith("/reel/")) return false
-
-        val remainder = url.path.removePrefix("/reel/")
-        val id = remainder.removeSuffix("/")
-        return id.isNotEmpty() && id.none { it == '/' } && REEL_ID_PATTERN.matches(id)
-    }
+    private fun isInstagramReel(url: HttpUrl): Boolean =
+        instagramContentType(url) == InstagramContentType.REEL
 
     private fun clearInstagramReelQuery(candidate: String, url: HttpUrl): CleaningResult {
         val removed = url.parameters.map { parameter ->
@@ -129,6 +134,62 @@ class UrlCleaner(
         )
     }
 
+    private enum class InstagramContentType(val pathPrefix: String) {
+        REEL("/reel/"),
+        POST("/p/"),
+    }
+
+    /**
+     * Matches only a single Instagram post/reel: `/p/{id}` or `/reel/{id}`, optionally with one
+     * trailing slash. Subdomains are fine; lookalike hosts and extra path segments are not.
+     */
+    private fun instagramContentType(url: HttpUrl): InstagramContentType? {
+        if (url.host != "instagram.com" && !url.host.endsWith(".instagram.com")) return null
+        val type = InstagramContentType.entries.firstOrNull { url.path.startsWith(it.pathPrefix) }
+            ?: return null
+
+        val remainder = url.path.removePrefix(type.pathPrefix)
+        val id = remainder.removeSuffix("/")
+        if (id.isEmpty() || id.contains('/') || !CONTENT_ID_PATTERN.matches(id)) return null
+        return type
+    }
+
+    /**
+     * Post links keep `img_index` (needed to open the right image in a carousel) and drop every
+     * other query parameter, including share tokens that have not been named yet (cplk, vrfl, ...).
+     * Callers must check for sensitive parameters first: this function is the aggressive path.
+     */
+    private fun clearInstagramPostQuery(candidate: String, url: HttpUrl): CleaningResult {
+        val kept = ArrayList<QueryParameter>(url.parameters.size)
+        val removed = ArrayList<RemovedParameter>()
+
+        url.parameters.forEach { parameter ->
+            val name = PercentCodec.decode(parameter.rawName, plusAsSpace = false)
+            if (name.equals("img_index", ignoreCase = true)) {
+                kept += parameter
+            } else {
+                removed += RemovedParameter(
+                    name = name,
+                    value = parameter.rawValue?.let { PercentCodec.decode(it, plusAsSpace = true) },
+                    raw = parameter.raw,
+                    ruleSource = "Instagram Post",
+                )
+            }
+        }
+
+        if (removed.isEmpty()) {
+            return CleaningResult.unchanged(candidate, CleaningStatus.UNCHANGED, url.host)
+        }
+
+        return CleaningResult(
+            originalUrl = candidate,
+            cleanedUrl = url.rebuild(kept),
+            status = CleaningStatus.CLEANED,
+            removedParameters = removed,
+            host = url.host,
+        )
+    }
+
     private fun isSensitiveParameter(rawName: String): Boolean {
         val name = PercentCodec.decode(rawName, plusAsSpace = false).lowercase()
         return SENSITIVE_NAME_HINTS.any { name.contains(it) }
@@ -136,7 +197,7 @@ class UrlCleaner(
 
     private companion object {
         /** Shortcodes are alphanumeric; a generous length range still rejects junk. */
-        val REEL_ID_PATTERN = Regex("[A-Za-z0-9_-]{3,64}")
+        val CONTENT_ID_PATTERN = Regex("[A-Za-z0-9_-]{3,64}")
 
         val SENSITIVE_NAME_HINTS = listOf(
             "token",
