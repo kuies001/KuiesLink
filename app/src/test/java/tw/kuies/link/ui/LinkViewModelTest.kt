@@ -49,10 +49,45 @@ class LinkViewModelTest {
 
         assertEquals(1, requests.size)
         assertEquals("https://example.com/p?id=7", requests.single().url)
-        assertTrue(requests.single().closeAfterShare)
         assertEquals(CleaningStatus.CLEANED, requests.single().quickNotice?.status)
         assertEquals(1, requests.single().quickNotice?.removedCount)
         assertEquals(CleaningStatus.CLEANED, viewModel.uiState.value.result?.status)
+    }
+
+    @Test
+    fun quickModeKeepsTheResultAfterTheShareRequestIsConsumed() = runTest(dispatcher) {
+        val viewModel = LinkViewModel(FakeSettings(ShareMode.QUICK), computeDispatcher = dispatcher)
+        val requests = collectShareRequests(viewModel)
+
+        viewModel.onShareIntent("https://www.instagram.com/reel/DeuAqoizRW9/?vrfl=djBqNnQzZ2J6Y2Fu")
+        advanceUntilIdle()
+
+        // Consuming the one-shot share event must not clear the cleaning result the sheet
+        // returns to (the activity is no longer finished after sharing).
+        assertEquals(1, requests.size)
+        assertEquals(
+            "https://www.instagram.com/reel/DeuAqoizRW9/",
+            viewModel.uiState.value.result?.cleanedUrl,
+        )
+        assertEquals(1, viewModel.uiState.value.result?.removedCount)
+        assertEquals(
+            "https://www.instagram.com/reel/DeuAqoizRW9/?vrfl=djBqNnQzZ2J6Y2Fu",
+            viewModel.uiState.value.input,
+        )
+    }
+
+    @Test
+    fun aDifferentShareIntentAfterTheFirstIsStillProcessed() = runTest(dispatcher) {
+        val viewModel = LinkViewModel(FakeSettings(ShareMode.QUICK), computeDispatcher = dispatcher)
+        val requests = collectShareRequests(viewModel)
+
+        viewModel.onShareIntent("https://example.com/a?utm_source=one")
+        viewModel.onShareIntent("https://example.com/b?utm_source=two")
+        advanceUntilIdle()
+
+        assertEquals(2, requests.size)
+        assertEquals("https://example.com/a", requests[0].url)
+        assertEquals("https://example.com/b", requests[1].url)
     }
 
     @Test

@@ -123,7 +123,6 @@ class LinkViewModel(
             CleaningStatus.CLEANED -> shareChannel.trySend(
                 ShareRequest(
                     url = result.cleanedUrl,
-                    closeAfterShare = true,
                     quickNotice = QuickShareNotice(CleaningStatus.CLEANED, result.removedCount),
                 ),
             )
@@ -131,7 +130,6 @@ class LinkViewModel(
             CleaningStatus.UNCHANGED -> shareChannel.trySend(
                 ShareRequest(
                     url = result.cleanedUrl,
-                    closeAfterShare = true,
                     quickNotice = QuickShareNotice(CleaningStatus.UNCHANGED, 0),
                 ),
             )

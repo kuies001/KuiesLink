@@ -29,7 +29,6 @@ enum class LinkNotice {
 
 data class ShareRequest(
     val url: String,
-    val closeAfterShare: Boolean,
     /**
      * Set only for quick-mode auto shares; the host shows it once, before the system chooser, and
      * manual shares keep it null so they never show a cleaning report.

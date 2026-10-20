@@ -10,7 +10,6 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,17 +40,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private var closeAfterShare = false
-
-    private val shareLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult(),
-    ) {
-        if (closeAfterShare) {
-            closeAfterShare = false
-            finish()
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -78,7 +66,7 @@ class MainActivity : ComponentActivity() {
                     onClearInput = viewModel::onClearInput,
                     onSelectCandidate = viewModel::onSelectCandidate,
                     onCopyUrl = { url -> copyUrl(url) },
-                    onShareUrl = { url -> launchChooser(ShareRequest(url, closeAfterShare = false)) },
+                    onShareUrl = { url -> launchChooser(ShareRequest(url)) },
                     onRestoreOriginal = viewModel::onRestoreOriginal,
                     onOpenSettings = viewModel::onOpenSettings,
                     onCloseSettings = viewModel::onCloseSettings,
@@ -122,7 +110,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun launchChooser(request: ShareRequest) {
-        closeAfterShare = request.closeAfterShare
         // Shown right before the sheet opens; one toast per share event, never re-fired by
         // recomposition or Activity recreation (the request itself is one-shot).
         request.quickNotice?.let(::showQuickNotice)
@@ -136,7 +123,9 @@ class MainActivity : ComponentActivity() {
                 arrayListOf(ComponentName(this@MainActivity, MainActivity::class.java)),
             )
         }
-        shareLauncher.launch(chooser)
+        // No Activity Result / finish(): closing the sheet must land back on this Activity with
+        // the cleaning result intact. The chooser's result code says nothing about a share.
+        startActivity(chooser)
     }
 
     private fun showQuickNotice(notice: QuickShareNotice) {
