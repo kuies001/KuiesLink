@@ -28,8 +28,13 @@ class UrlCleaner(
         val url = HttpUrl.parse(candidate)
             ?: return CleaningResult.unchanged(input, CleaningStatus.INVALID_URL, host = null)
 
+        // A wrapper hides its real destination; never forward it silently as if it were cleaned.
+        if (isUnresolvedWrapper(url)) {
+            return CleaningResult.unchanged(candidate, CleaningStatus.UNRESOLVED_WRAPPER, url.host)
+        }
+
         if (url.parameters.isEmpty()) {
-            return CleaningResult.unchanged(candidate, CleaningStatus.ALREADY_CLEAN, url.host)
+            return CleaningResult.unchanged(candidate, CleaningStatus.UNCHANGED, url.host)
         }
 
         val containsSensitiveParameter = url.parameters.any { isSensitiveParameter(it.rawName) }
@@ -55,7 +60,7 @@ class UrlCleaner(
         }
 
         if (removed.isEmpty()) {
-            return CleaningResult.unchanged(candidate, CleaningStatus.ALREADY_CLEAN, url.host)
+            return CleaningResult.unchanged(candidate, CleaningStatus.UNCHANGED, url.host)
         }
 
         return CleaningResult(
@@ -65,6 +70,21 @@ class UrlCleaner(
             removedParameters = removed,
             host = url.host,
         )
+    }
+
+    /**
+     * Recognises the small set of share shims that carry the real destination only inside a query
+     * parameter. Only these exact shapes qualify: an unchanged ordinary URL stays UNCHANGED.
+     */
+    private fun isUnresolvedWrapper(url: HttpUrl): Boolean {
+        val hasTargetParameter = url.parameters.any {
+            PercentCodec.decode(it.rawName, plusAsSpace = false).equals("u", ignoreCase = true)
+        }
+        return when (url.host) {
+            "l.facebook.com", "lm.facebook.com" -> url.path == "/l.php" && hasTargetParameter
+            "l.instagram.com" -> hasTargetParameter
+            else -> false
+        }
     }
 
     private fun isSensitiveParameter(rawName: String): Boolean {

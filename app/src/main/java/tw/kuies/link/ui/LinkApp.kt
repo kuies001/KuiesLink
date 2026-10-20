@@ -20,9 +20,9 @@ val LinkNotice.messageRes: Int
         LinkNotice.NoUrlFound -> R.string.notice_no_url
         LinkNotice.MultipleUrls -> R.string.notice_multiple_urls
         LinkNotice.EmptyShare -> R.string.notice_empty_share
-        LinkNotice.QuickShareNoChange -> R.string.notice_quick_no_change
-        LinkNotice.QuickShareInvalid -> R.string.notice_quick_invalid
         LinkNotice.QuickShareFailed -> R.string.notice_quick_failed
+        LinkNotice.QuickShareUnresolved -> R.string.notice_quick_unresolved
+        LinkNotice.QuickShareInvalid -> R.string.notice_quick_invalid
         LinkNotice.RestoredOriginal -> R.string.notice_restored
         LinkNotice.ClipboardEmpty -> R.string.notice_clipboard_empty
         LinkNotice.Copied -> R.string.notice_copied

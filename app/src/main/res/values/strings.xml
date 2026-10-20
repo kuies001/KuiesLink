@@ -19,7 +19,9 @@
 
     <string name="result_removed_count">已移除 %1$d 個追蹤參數</string>
     <string name="result_already_clean">網址已經很乾淨</string>
-    <string name="result_failed">無法清理這個網址</string>
+    <string name="result_unresolved_wrapper">此連結尚未還原</string>
+    <string name="result_invalid_url">無法清理這個網址</string>
+    <string name="result_failed">清理未完成</string>
     <string name="result_original_label">原始網址</string>
     <string name="result_cleaned_label">乾淨網址</string>
     <string name="result_removed_title">移除的參數</string>
@@ -31,9 +33,9 @@
     <string name="notice_no_url">找不到可清理的 HTTP 或 HTTPS 網址</string>
     <string name="notice_multiple_urls">這段文字裡有多個網址，請先選擇一個</string>
     <string name="notice_empty_share">分享內容是空的，沒有網址可以清理</string>
-    <string name="notice_quick_no_change">網址已經很乾淨，沒有需要分享的變更；請手動確認後再分享</string>
+    <string name="notice_quick_failed">清理未完成，已保留原始網址</string>
+    <string name="notice_quick_unresolved">此連結尚未還原，請確認後分享</string>
     <string name="notice_quick_invalid">無法自動分享：這不是有效的 HTTP 或 HTTPS 網址</string>
-    <string name="notice_quick_failed">清理時發生問題，已保留原始網址</string>
     <string name="notice_restored">已把原始網址放回輸入框</string>
     <string name="notice_clipboard_empty">剪貼簿裡沒有文字</string>
     <string name="notice_copied">已複製乾淨網址</string>
@@ -49,8 +51,10 @@
     <string name="settings_privacy_title">隱私說明</string>
     <string name="settings_privacy_body">所有網址清理都在這支手機上完成。KuiesLink 不會上傳、儲存或分析你貼上的網址，也不需要網路權限。App 只會在裝置上保存你的分享模式設定。</string>
     <string name="settings_github_link">kuies001/kuies-short-url</string>
-    <string name="settings_v010_note">v0.1.0 只做本機清理，不會產生短網址。</string>
+    <string name="settings_v010_note">只做本機清理，不會產生短網址。</string>
 
     <string name="share_chooser_title">分享乾淨網址</string>
+    <string name="quick_notice_cleaned">已移除 %1$d 個追蹤參數，可以直接分享</string>
+    <string name="quick_notice_unchanged">網址無需清理，可以直接分享</string>
     <string name="settings_back">返回</string>
 </resources>

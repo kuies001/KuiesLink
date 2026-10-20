@@ -18,6 +18,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import tw.kuies.link.domain.CleaningStatus
+import tw.kuies.link.domain.TrackingRule
+import tw.kuies.link.domain.TrackingRulesRepository
+import tw.kuies.link.domain.UrlCleaner
 import tw.kuies.link.settings.SettingsRepository
 import tw.kuies.link.settings.ShareMode
 
@@ -47,6 +50,8 @@ class LinkViewModelTest {
         assertEquals(1, requests.size)
         assertEquals("https://example.com/p?id=7", requests.single().url)
         assertTrue(requests.single().closeAfterShare)
+        assertEquals(CleaningStatus.CLEANED, requests.single().quickNotice?.status)
+        assertEquals(1, requests.single().quickNotice?.removedCount)
         assertEquals(CleaningStatus.CLEANED, viewModel.uiState.value.result?.status)
     }
 
@@ -93,16 +98,68 @@ class LinkViewModelTest {
     }
 
     @Test
-    fun quickModeFallsBackToConfirmWhenNothingWasRemoved() = runTest(dispatcher) {
+    fun quickModeSharesUnchangedUrlWithItsOwnNotice() = runTest(dispatcher) {
         val viewModel = LinkViewModel(FakeSettings(ShareMode.QUICK), computeDispatcher = dispatcher)
         val requests = collectShareRequests(viewModel)
 
         viewModel.onShareIntent("https://example.com/p?id=1")
         advanceUntilIdle()
 
+        assertEquals(1, requests.size)
+        assertEquals("https://example.com/p?id=1", requests.single().url)
+        assertEquals(CleaningStatus.UNCHANGED, requests.single().quickNotice?.status)
+        assertEquals(0, requests.single().quickNotice?.removedCount)
+        assertEquals(CleaningStatus.UNCHANGED, viewModel.uiState.value.result?.status)
+    }
+
+    @Test
+    fun quickModeNoticeUsesTheRealRemovedCount() = runTest(dispatcher) {
+        val viewModel = LinkViewModel(FakeSettings(ShareMode.QUICK), computeDispatcher = dispatcher)
+        val requests = collectShareRequests(viewModel)
+
+        viewModel.onShareIntent(
+            "https://www.instagram.com/reel/DcClyQgikR4/?exln=Yjg5MXAy&igsh=MW9xZ2F0",
+        )
+        advanceUntilIdle()
+
+        assertEquals(1, requests.size)
+        assertEquals("https://www.instagram.com/reel/DcClyQgikR4/", requests.single().url)
+        assertEquals(2, requests.single().quickNotice?.removedCount)
+        assertEquals(CleaningStatus.CLEANED, requests.single().quickNotice?.status)
+    }
+
+    @Test
+    fun quickModeStopsOnAnUnresolvedWrapper() = runTest(dispatcher) {
+        val viewModel = LinkViewModel(FakeSettings(ShareMode.QUICK), computeDispatcher = dispatcher)
+        val requests = collectShareRequests(viewModel)
+
+        viewModel.onShareIntent("https://l.facebook.com/l.php?u=https%3A%2F%2Fexample.com%2F&h=AT1")
+        advanceUntilIdle()
+
         assertTrue(requests.isEmpty())
-        assertEquals(LinkNotice.QuickShareNoChange, viewModel.uiState.value.notice)
-        assertEquals(CleaningStatus.ALREADY_CLEAN, viewModel.uiState.value.result?.status)
+        assertEquals(LinkNotice.QuickShareUnresolved, viewModel.uiState.value.notice)
+        assertEquals(CleaningStatus.UNRESOLVED_WRAPPER, viewModel.uiState.value.result?.status)
+    }
+
+    @Test
+    fun quickModeStopsWhenCleaningFails() = runTest(dispatcher) {
+        val brokenRules = object : TrackingRulesRepository() {
+            override fun ruleFor(host: String, parameterName: String): TrackingRule? =
+                error("simulated failure")
+        }
+        val viewModel = LinkViewModel(
+            settingsRepository = FakeSettings(ShareMode.QUICK),
+            cleaner = UrlCleaner(brokenRules),
+            computeDispatcher = dispatcher,
+        )
+        val requests = collectShareRequests(viewModel)
+
+        viewModel.onShareIntent("https://example.com/?utm_source=a")
+        advanceUntilIdle()
+
+        assertTrue(requests.isEmpty())
+        assertEquals(LinkNotice.QuickShareFailed, viewModel.uiState.value.notice)
+        assertEquals("https://example.com/?utm_source=a", viewModel.uiState.value.result?.cleanedUrl)
     }
 
     @Test

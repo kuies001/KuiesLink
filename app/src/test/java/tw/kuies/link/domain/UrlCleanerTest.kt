@@ -54,7 +54,7 @@ class UrlCleanerTest {
         val url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PL123&t=42s&si=abc"
         val result = cleaner.clean(url)
 
-        assertEquals(CleaningStatus.ALREADY_CLEAN, result.status)
+        assertEquals(CleaningStatus.UNCHANGED, result.status)
         assertEquals(url, result.cleanedUrl)
         assertTrue(result.removedParameters.isEmpty())
     }
@@ -106,7 +106,7 @@ class UrlCleanerTest {
         val url = "https://example.com/a/b?x=1&y=2#top"
         val result = cleaner.clean(url)
 
-        assertEquals(CleaningStatus.ALREADY_CLEAN, result.status)
+        assertEquals(CleaningStatus.UNCHANGED, result.status)
         assertEquals(url, result.cleanedUrl)
         assertEquals(0, result.removedCount)
     }
@@ -206,7 +206,112 @@ class UrlCleanerTest {
         val second = cleaner.clean(first.cleanedUrl)
 
         assertEquals(first.cleanedUrl, second.cleanedUrl)
-        assertEquals(CleaningStatus.ALREADY_CLEAN, second.status)
+        assertEquals(CleaningStatus.UNCHANGED, second.status)
         assertEquals(0, second.removedCount)
+    }
+
+    @Test
+    fun instagramReelExlnIsRemoved() {
+        val result = cleaner.clean("https://www.instagram.com/reel/DcClyQgikR4/?exln=Yjg5MXAyMzZid2l0")
+
+        assertEquals(CleaningStatus.CLEANED, result.status)
+        assertEquals("https://www.instagram.com/reel/DcClyQgikR4/", result.cleanedUrl)
+        assertEquals(listOf("exln"), result.removedParameters.map { it.name })
+        assertEquals("Yjg5MXAyMzZid2l0", result.removedParameters.single().value)
+        assertEquals("Instagram", result.removedParameters.single().ruleSource)
+    }
+
+    @Test
+    fun instagramReelExlnAndIgshAreBothRemoved() {
+        val result = cleaner.clean(
+            "https://www.instagram.com/reel/DcClyQgikR4/?exln=Yjg5MXAy&igsh=MW9xZ2F0&img_index=2",
+        )
+
+        assertEquals("https://www.instagram.com/reel/DcClyQgikR4/?img_index=2", result.cleanedUrl)
+        assertEquals(2, result.removedCount)
+        assertEquals(listOf("exln", "igsh"), result.removedParameters.map { it.name })
+    }
+
+    @Test
+    fun exlnIsNotRemovedOnOtherWebsites() {
+        val url = "https://shop.example.com/item?exln=abc&sku=1"
+        val result = cleaner.clean(url)
+
+        assertEquals(CleaningStatus.UNCHANGED, result.status)
+        assertEquals(url, result.cleanedUrl)
+        assertEquals(0, result.removedCount)
+    }
+
+    @Test
+    fun instagramKeepsItsFunctionalParameters() {
+        val result = cleaner.clean(
+            "https://www.instagram.com/p/CxYz123/?img_index=2&exln=token&hl=zh-tw",
+        )
+
+        assertEquals("https://www.instagram.com/p/CxYz123/?img_index=2&hl=zh-tw", result.cleanedUrl)
+        assertEquals(listOf("exln"), result.removedParameters.map { it.name })
+    }
+
+    @Test
+    fun instagramLookalikeHostsAreNotMatched() {
+        val lookalikes = listOf(
+            "https://fakeinstagram.com/reel/X/?exln=1",
+            "https://instagram.com.evil.example/reel/X/?exln=1",
+            "https://notinstagram.com/?exln=1",
+        )
+
+        lookalikes.forEach { url ->
+            val result = cleaner.clean(url)
+            assertEquals("url: <$url>", CleaningStatus.UNCHANGED, result.status)
+            assertEquals("url: <$url>", url, result.cleanedUrl)
+        }
+    }
+
+    @Test
+    fun instagramExlnCleaningIsIdempotent() {
+        val first = cleaner.clean("https://www.instagram.com/reel/DcClyQgikR4/?exln=Yjg5#comments")
+        val second = cleaner.clean(first.cleanedUrl)
+
+        assertEquals("https://www.instagram.com/reel/DcClyQgikR4/#comments", first.cleanedUrl)
+        assertEquals(first.cleanedUrl, second.cleanedUrl)
+        assertEquals(CleaningStatus.UNCHANGED, second.status)
+        assertEquals(0, second.removedCount)
+    }
+
+    @Test
+    fun facebookLinkShimIsReportedAsUnresolvedWrapper() {
+        val url = "https://l.facebook.com/l.php?u=https%3A%2F%2Fexample.com%2Fpost&h=AT1"
+        val result = cleaner.clean(url)
+
+        assertEquals(CleaningStatus.UNRESOLVED_WRAPPER, result.status)
+        assertEquals(url, result.cleanedUrl)
+        assertTrue(result.removedParameters.isEmpty())
+    }
+
+    @Test
+    fun instagramLinkShimIsReportedAsUnresolvedWrapper() {
+        val url = "https://l.instagram.com/?u=https%3A%2F%2Fexample.com%2F&e=abc"
+        val result = cleaner.clean(url)
+
+        assertEquals(CleaningStatus.UNRESOLVED_WRAPPER, result.status)
+        assertEquals(url, result.cleanedUrl)
+    }
+
+    @Test
+    fun unchangedUrlIsNotMistakenForAnUnresolvedWrapper() {
+        assertEquals(
+            CleaningStatus.UNCHANGED,
+            cleaner.clean("https://example.com/article?id=1").status,
+        )
+        // l.facebook.com, but not the /l.php shim path.
+        assertEquals(
+            CleaningStatus.UNCHANGED,
+            cleaner.clean("https://l.facebook.com/help?u=x").status,
+        )
+        // The shim path on an unrelated host.
+        assertEquals(
+            CleaningStatus.UNCHANGED,
+            cleaner.clean("https://example.com/l.php?u=x").status,
+        )
     }
 }

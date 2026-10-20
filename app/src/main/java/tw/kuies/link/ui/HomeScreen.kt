@@ -337,7 +337,12 @@ private fun StatusPill(result: CleaningResult) {
             content = MaterialTheme.colorScheme.onPrimaryContainer
         }
 
-        CleaningStatus.ALREADY_CLEAN -> {
+        CleaningStatus.UNCHANGED -> {
+            container = MaterialTheme.colorScheme.secondaryContainer
+            content = MaterialTheme.colorScheme.onSecondaryContainer
+        }
+
+        CleaningStatus.UNRESOLVED_WRAPPER -> {
             container = MaterialTheme.colorScheme.secondaryContainer
             content = MaterialTheme.colorScheme.onSecondaryContainer
         }
@@ -352,8 +357,10 @@ private fun StatusPill(result: CleaningResult) {
         Text(
             text = when (result.status) {
                 CleaningStatus.CLEANED -> stringResource(R.string.result_removed_count, result.removedCount)
-                CleaningStatus.ALREADY_CLEAN -> stringResource(R.string.result_already_clean)
-                CleaningStatus.INVALID_URL, CleaningStatus.FAILED -> stringResource(R.string.result_failed)
+                CleaningStatus.UNCHANGED -> stringResource(R.string.result_already_clean)
+                CleaningStatus.UNRESOLVED_WRAPPER -> stringResource(R.string.result_unresolved_wrapper)
+                CleaningStatus.INVALID_URL -> stringResource(R.string.result_invalid_url)
+                CleaningStatus.FAILED -> stringResource(R.string.result_failed)
             },
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
             style = MaterialTheme.typography.labelMedium,

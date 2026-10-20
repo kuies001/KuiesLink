@@ -6,6 +6,7 @@ import android.content.ComponentName
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -18,9 +19,11 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import tw.kuies.link.settings.DataStoreSettingsRepository
 import tw.kuies.link.settings.linkSettingsDataStore
+import tw.kuies.link.domain.CleaningStatus
 import tw.kuies.link.ui.LinkApp
 import tw.kuies.link.ui.LinkNotice
 import tw.kuies.link.ui.LinkViewModel
+import tw.kuies.link.ui.QuickShareNotice
 import tw.kuies.link.ui.ShareRequest
 import tw.kuies.link.ui.theme.KuiesLinkTheme
 
@@ -120,6 +123,9 @@ class MainActivity : ComponentActivity() {
 
     private fun launchChooser(request: ShareRequest) {
         closeAfterShare = request.closeAfterShare
+        // Shown right before the sheet opens; one toast per share event, never re-fired by
+        // recomposition or Activity recreation (the request itself is one-shot).
+        request.quickNotice?.let(::showQuickNotice)
         val send = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, request.url)
@@ -131,5 +137,14 @@ class MainActivity : ComponentActivity() {
             )
         }
         shareLauncher.launch(chooser)
+    }
+
+    private fun showQuickNotice(notice: QuickShareNotice) {
+        val message = when (notice.status) {
+            CleaningStatus.CLEANED -> getString(R.string.quick_notice_cleaned, notice.removedCount)
+            CleaningStatus.UNCHANGED -> getString(R.string.quick_notice_unchanged)
+            else -> return
+        }
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 }

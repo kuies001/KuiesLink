@@ -5,7 +5,14 @@ enum class CleaningStatus {
     CLEANED,
 
     /** A usable URL without any removable tracking parameter. */
-    ALREADY_CLEAN,
+    UNCHANGED,
+
+    /**
+     * A known link shim (for example l.facebook.com/l.php?u=...) whose real destination is only
+     * encoded inside a query parameter. v0.1.x does not unwrap these, so the result is not
+     * silently forwarded.
+     */
+    UNRESOLVED_WRAPPER,
 
     /** The input is not a single absolute HTTP(S) URL. */
     INVALID_URL,
@@ -33,7 +40,9 @@ data class CleaningResult(
     val hasChange: Boolean get() = cleanedUrl != originalUrl
 
     val isShareable: Boolean
-        get() = status == CleaningStatus.CLEANED || status == CleaningStatus.ALREADY_CLEAN
+        get() = status == CleaningStatus.CLEANED ||
+            status == CleaningStatus.UNCHANGED ||
+            status == CleaningStatus.UNRESOLVED_WRAPPER
 
     companion object {
         fun unchanged(url: String, status: CleaningStatus, host: String?): CleaningResult =

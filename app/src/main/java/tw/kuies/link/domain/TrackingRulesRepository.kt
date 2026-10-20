@@ -51,6 +51,10 @@ open class TrackingRulesRepository(
             TrackingRule("slof", "Threads"),
             TrackingRule("igsh", "Instagram"),
             TrackingRule("igshid", "Instagram"),
+            // Instagram's own web bootstrap lists exln in IGShareIdParams (next to igsh/igshid),
+            // so it is a share id, not a functional parameter. It is scoped to instagram.com:
+            // other sites may use the same name for something functional.
+            TrackingRule("exln", "Instagram", hosts = setOf("instagram.com")),
             // Facebook's own share link carries a functional target in share_url.
             TrackingRule("share_url", "Facebook", hosts = setOf("facebook.com", "fb.com", "fb.watch")),
         )

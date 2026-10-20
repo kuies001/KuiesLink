@@ -120,10 +120,24 @@ class LinkViewModel(
     private fun applyQuickMode(result: CleaningResult) {
         if (_uiState.value.shareMode != ShareMode.QUICK) return
         when (result.status) {
-            CleaningStatus.CLEANED ->
-                shareChannel.trySend(ShareRequest(result.cleanedUrl, closeAfterShare = true))
+            CleaningStatus.CLEANED -> shareChannel.trySend(
+                ShareRequest(
+                    url = result.cleanedUrl,
+                    closeAfterShare = true,
+                    quickNotice = QuickShareNotice(CleaningStatus.CLEANED, result.removedCount),
+                ),
+            )
 
-            CleaningStatus.ALREADY_CLEAN -> showNotice(LinkNotice.QuickShareNoChange)
+            CleaningStatus.UNCHANGED -> shareChannel.trySend(
+                ShareRequest(
+                    url = result.cleanedUrl,
+                    closeAfterShare = true,
+                    quickNotice = QuickShareNotice(CleaningStatus.UNCHANGED, 0),
+                ),
+            )
+
+            // Uncertain outcomes stay on the confirmation screen instead of being forwarded.
+            CleaningStatus.UNRESOLVED_WRAPPER -> showNotice(LinkNotice.QuickShareUnresolved)
             CleaningStatus.INVALID_URL -> showNotice(LinkNotice.QuickShareInvalid)
             CleaningStatus.FAILED -> showNotice(LinkNotice.QuickShareFailed)
         }
