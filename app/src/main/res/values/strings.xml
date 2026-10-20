@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">KuiesLink</string>
+
+    <string name="home_tagline">把網址清乾淨，再安心分享。</string>
+    <string name="home_settings">設定</string>
+    <string name="home_clear">清除</string>
+    <string name="home_input_label">網址</string>
+    <string name="home_input_placeholder">貼上或輸入網址，也可以從其他 App 分享過來</string>
+    <string name="home_paste">貼上</string>
+    <string name="home_clean">清理網址</string>
+    <string name="home_cleaning">清理中…</string>
+    <string name="home_mode_confirm">確認模式</string>
+    <string name="home_mode_quick">快速模式</string>
+    <string name="home_mode_change">變更</string>
+
+    <string name="home_candidates_title">找到 %1$d 個網址</string>
+    <string name="home_candidates_hint">請選擇要清理的連結，KuiesLink 不會自行猜測。</string>
+
+    <string name="result_removed_count">已移除 %1$d 個追蹤參數</string>
+    <string name="result_already_clean">網址已經很乾淨</string>
+    <string name="result_failed">無法清理這個網址</string>
+    <string name="result_original_label">原始網址</string>
+    <string name="result_cleaned_label">乾淨網址</string>
+    <string name="result_removed_title">移除的參數</string>
+    <string name="result_empty_value">（無值）</string>
+    <string name="result_copy">複製乾淨網址</string>
+    <string name="result_share">分享</string>
+    <string name="result_restore">還原原始網址</string>
+
+    <string name="notice_no_url">找不到可清理的 HTTP 或 HTTPS 網址</string>
+    <string name="notice_multiple_urls">這段文字裡有多個網址，請先選擇一個</string>
+    <string name="notice_empty_share">分享內容是空的，沒有網址可以清理</string>
+    <string name="notice_quick_no_change">網址已經很乾淨，沒有需要分享的變更；請手動確認後再分享</string>
+    <string name="notice_quick_invalid">無法自動分享：這不是有效的 HTTP 或 HTTPS 網址</string>
+    <string name="notice_quick_failed">清理時發生問題，已保留原始網址</string>
+    <string name="notice_restored">已把原始網址放回輸入框</string>
+    <string name="notice_clipboard_empty">剪貼簿裡沒有文字</string>
+    <string name="notice_copied">已複製乾淨網址</string>
+
+    <string name="settings_title">設定</string>
+    <string name="settings_mode_title">分享模式</string>
+    <string name="settings_mode_confirm_title">確認模式</string>
+    <string name="settings_mode_confirm_body">先顯示清理結果，由你決定要複製還是分享。</string>
+    <string name="settings_mode_quick_title">快速模式</string>
+    <string name="settings_mode_quick_body">清理後直接開啟系統分享選單。網址沒有變更或無法判斷時，會回到確認畫面。</string>
+    <string name="settings_about_title">關於</string>
+    <string name="settings_version">版本 %1$s</string>
+    <string name="settings_privacy_title">隱私說明</string>
+    <string name="settings_privacy_body">所有網址清理都在這支手機上完成。KuiesLink 不會上傳、儲存或分析你貼上的網址，也不需要網路權限。App 只會在裝置上保存你的分享模式設定。</string>
+    <string name="settings_github_link">kuies001/kuies-short-url</string>
+    <string name="settings_v010_note">v0.1.0 只做本機清理，不會產生短網址。</string>
+
+    <string name="share_chooser_title">分享乾淨網址</string>
+    <string name="settings_back">返回</string>
+</resources>
