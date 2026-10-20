@@ -11,15 +11,20 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tw.kuies.link.data.ShortenError
+import tw.kuies.link.data.ShortenResponse
+import tw.kuies.link.data.ShortenResult
 import tw.kuies.link.domain.CleaningResult
 import tw.kuies.link.domain.CleaningStatus
 import tw.kuies.link.domain.ExtractionResult
 import tw.kuies.link.domain.UrlCleaner
 import tw.kuies.link.domain.UrlExtractor
+import tw.kuies.link.settings.PreferredShareTarget
 import tw.kuies.link.settings.SettingsRepository
 import tw.kuies.link.settings.ShareMode
 
@@ -27,6 +32,13 @@ class LinkViewModel(
     private val settingsRepository: SettingsRepository,
     private val cleaner: UrlCleaner = UrlCleaner(),
     private val computeDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    /**
+     * One shortener call. Production injects the HTTP repository; the default fails closed so a
+     * mis-wired build can never silently create short URLs.
+     */
+    private val shortenRequest: suspend (String) -> ShortenResult = {
+        ShortenResult.Failure(ShortenError.CANCELLED)
+    },
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LinkUiState())
@@ -40,15 +52,28 @@ class LinkViewModel(
     private var latestRequestId = 0L
     private var cleaningJob: Job? = null
 
+    private var shortenJob: Job? = null
+    private var shortenRequestId = 0L
+    private var lastShortenedUrl: String? = null
+
     private data class PendingShare(val requestId: Long, val url: String)
 
     init {
         viewModelScope.launch {
-            settingsRepository.shareMode
-                .catch { emit(ShareMode.DEFAULT) }
-                .collect { mode ->
+            combine(
+                settingsRepository.shareMode,
+                settingsRepository.preferredShareTarget,
+            ) { mode, target -> mode to target }
+                .catch { emit(ShareMode.DEFAULT to PreferredShareTarget.DEFAULT) }
+                .collect { (mode, target) ->
                     val firstEmission = !_uiState.value.settingsLoaded
-                    _uiState.update { it.copy(shareMode = mode, settingsLoaded = true) }
+                    _uiState.update {
+                        it.copy(
+                            shareMode = mode,
+                            preferredShareTarget = target,
+                            settingsLoaded = true,
+                        )
+                    }
                     if (firstEmission) drainPendingShare()
                 }
         }
@@ -75,6 +100,7 @@ class LinkViewModel(
 
     private fun startFromSharedText(text: String?) {
         cleaningJob?.cancel()
+        invalidateShortening()
         val extraction = UrlExtractor.extract(text)
         _uiState.update {
             it.copy(
@@ -119,25 +145,128 @@ class LinkViewModel(
 
     private fun applyQuickMode(result: CleaningResult) {
         if (_uiState.value.shareMode != ShareMode.QUICK) return
+        val preferShortUrl =
+            _uiState.value.preferredShareTarget == PreferredShareTarget.KUIES_SHORT_URL
         when (result.status) {
-            CleaningStatus.CLEANED -> shareChannel.trySend(
-                ShareRequest(
-                    url = result.cleanedUrl,
-                    quickNotice = QuickShareNotice(CleaningStatus.CLEANED, result.removedCount),
-                ),
-            )
+            CleaningStatus.CLEANED, CleaningStatus.UNCHANGED -> {
+                if (preferShortUrl) {
+                    startShortening(result.originalUrl, autoShare = true)
+                } else {
+                    shareCleaned(result)
+                }
+            }
 
-            CleaningStatus.UNCHANGED -> shareChannel.trySend(
-                ShareRequest(
-                    url = result.cleanedUrl,
-                    quickNotice = QuickShareNotice(CleaningStatus.UNCHANGED, 0),
-                ),
-            )
+            CleaningStatus.UNRESOLVED_WRAPPER -> {
+                // The backend resolves Facebook/Threads wrappers, so this only stops the flow when
+                // the user asked for the locally cleaned URL.
+                if (preferShortUrl) {
+                    startShortening(result.originalUrl, autoShare = true)
+                } else {
+                    showNotice(LinkNotice.QuickShareUnresolved)
+                }
+            }
 
             // Uncertain outcomes stay on the confirmation screen instead of being forwarded.
-            CleaningStatus.UNRESOLVED_WRAPPER -> showNotice(LinkNotice.QuickShareUnresolved)
             CleaningStatus.INVALID_URL -> showNotice(LinkNotice.QuickShareInvalid)
             CleaningStatus.FAILED -> showNotice(LinkNotice.QuickShareFailed)
+        }
+    }
+
+    private fun shareCleaned(result: CleaningResult) {
+        val status = if (result.status == CleaningStatus.CLEANED) {
+            CleaningStatus.CLEANED
+        } else {
+            CleaningStatus.UNCHANGED
+        }
+        shareChannel.trySend(
+            ShareRequest(
+                url = result.cleanedUrl,
+                quickNotice = QuickShareNotice(status, result.removedCount),
+            ),
+        )
+    }
+
+    // endregion
+
+    // region shortening
+
+    fun onShortenClick() {
+        val result = _uiState.value.result ?: return
+        if (!result.isShareable || _uiState.value.isShortening) return
+        if (lastShortenedUrl == result.originalUrl && _uiState.value.shortResult != null) return
+        startShortening(result.originalUrl, autoShare = false)
+    }
+
+    fun onRetryShorten() {
+        val result = _uiState.value.result ?: return
+        if (!result.isShareable || _uiState.value.isShortening) return
+        startShortening(result.originalUrl, autoShare = false)
+    }
+
+    /**
+     * Sends the raw original URL (not the locally cleaned one) because strict mode on the server
+     * is authoritative for resolution, cleaning and the short code itself.
+     */
+    private fun startShortening(url: String, autoShare: Boolean) {
+        shortenJob?.cancel()
+        val requestId = ++shortenRequestId
+        _uiState.update { it.copy(isShortening = true, shortenError = null) }
+        shortenJob = viewModelScope.launch {
+            val outcome = shortenRequest(url)
+            // A newer share/clean/restore owns the UI now; never let a stale response land.
+            if (requestId != shortenRequestId) return@launch
+            when (outcome) {
+                is ShortenResult.Success -> {
+                    lastShortenedUrl = url
+                    _uiState.update {
+                        it.copy(
+                            isShortening = false,
+                            shortResult = outcome.response,
+                            shortenError = null,
+                        )
+                    }
+                    if (autoShare) shareShortUrl(outcome.response)
+                }
+
+                is ShortenResult.Failure -> {
+                    lastShortenedUrl = null
+                    _uiState.update {
+                        it.copy(
+                            isShortening = false,
+                            shortResult = null,
+                            shortenError = outcome.error,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun shareShortUrl(response: ShortenResponse) {
+        val status = if (response.hasKnownTrackingRemoved) {
+            CleaningStatus.CLEANED
+        } else {
+            CleaningStatus.UNCHANGED
+        }
+        shareChannel.trySend(
+            ShareRequest(
+                url = response.shortUrl,
+                quickNotice = QuickShareNotice(
+                    status = status,
+                    removedCount = response.removedCount,
+                    isShortUrl = true,
+                ),
+            ),
+        )
+    }
+
+    private fun invalidateShortening() {
+        shortenJob?.cancel()
+        shortenJob = null
+        shortenRequestId++
+        lastShortenedUrl = null
+        _uiState.update {
+            it.copy(isShortening = false, shortResult = null, shortenError = null)
         }
     }
 
@@ -151,6 +280,7 @@ class LinkViewModel(
 
     fun onCleanClick() {
         cleaningJob?.cancel()
+        invalidateShortening()
         when (val extraction = UrlExtractor.extract(_uiState.value.input)) {
             ExtractionResult.None -> _uiState.update {
                 it.copy(
@@ -186,6 +316,7 @@ class LinkViewModel(
 
     fun onSelectCandidate(url: String) {
         cleaningJob?.cancel()
+        invalidateShortening()
         val requestId = ++latestRequestId
         _uiState.update {
             it.copy(
@@ -230,6 +361,7 @@ class LinkViewModel(
     fun onRestoreOriginal() {
         val result = _uiState.value.result ?: return
         cleaningJob?.cancel()
+        invalidateShortening()
         latestRequestId++
         _uiState.update {
             it.copy(
@@ -248,6 +380,12 @@ class LinkViewModel(
         if (_uiState.value.shareMode == mode) return
         _uiState.update { it.copy(shareMode = mode) }
         viewModelScope.launch { settingsRepository.setShareMode(mode) }
+    }
+
+    fun onPreferredShareTargetChange(target: PreferredShareTarget) {
+        if (_uiState.value.preferredShareTarget == target) return
+        _uiState.update { it.copy(preferredShareTarget = target) }
+        viewModelScope.launch { settingsRepository.setPreferredShareTarget(target) }
     }
 
     fun onOpenSettings() {

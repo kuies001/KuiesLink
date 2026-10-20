@@ -50,7 +50,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.annotation.StringRes
 import tw.kuies.link.R
+import tw.kuies.link.data.ShortenError
+import tw.kuies.link.data.ShortenResponse
 import tw.kuies.link.domain.CleaningResult
 import tw.kuies.link.domain.CleaningStatus
 import tw.kuies.link.domain.RemovedParameter
@@ -69,6 +72,10 @@ fun HomeScreen(
     onSelectCandidate: (String) -> Unit,
     onCopyUrl: (String) -> Unit,
     onShareUrl: (String) -> Unit,
+    onShorten: () -> Unit,
+    onRetryShorten: () -> Unit,
+    onCopyShortUrl: (String) -> Unit,
+    onShareShortUrl: (String) -> Unit,
     onRestoreOriginal: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
@@ -184,8 +191,15 @@ fun HomeScreen(
                 Spacer(Modifier.height(22.dp))
                 ResultCard(
                     result = result,
+                    isShortening = state.isShortening,
+                    shortResult = state.shortResult,
+                    shortenError = state.shortenError,
                     onCopy = onCopyUrl,
                     onShare = onShareUrl,
+                    onShorten = onShorten,
+                    onRetryShorten = onRetryShorten,
+                    onCopyShortUrl = onCopyShortUrl,
+                    onShareShortUrl = onShareShortUrl,
                     onRestore = onRestoreOriginal,
                 )
             }
@@ -258,8 +272,15 @@ private fun CandidateList(urls: List<String>, onSelect: (String) -> Unit) {
 @Composable
 private fun ResultCard(
     result: CleaningResult,
+    isShortening: Boolean,
+    shortResult: ShortenResponse?,
+    shortenError: ShortenError?,
     onCopy: (String) -> Unit,
     onShare: (String) -> Unit,
+    onShorten: () -> Unit,
+    onRetryShorten: () -> Unit,
+    onCopyShortUrl: (String) -> Unit,
+    onShareShortUrl: (String) -> Unit,
     onRestore: () -> Unit,
 ) {
     Surface(
@@ -323,9 +344,205 @@ private fun ResultCard(
                     Text(stringResource(R.string.result_restore))
                 }
             }
+
+            ShortenPanel(
+                result = result,
+                isShortening = isShortening,
+                shortResult = shortResult,
+                shortenError = shortenError,
+                onShorten = onShorten,
+                onRetry = onRetryShorten,
+                onCopyShortUrl = onCopyShortUrl,
+                onShareShortUrl = onShareShortUrl,
+            )
         }
     }
 }
+
+@Composable
+private fun ShortenPanel(
+    result: CleaningResult,
+    isShortening: Boolean,
+    shortResult: ShortenResponse?,
+    shortenError: ShortenError?,
+    onShorten: () -> Unit,
+    onRetry: () -> Unit,
+    onCopyShortUrl: (String) -> Unit,
+    onShareShortUrl: (String) -> Unit,
+) {
+    Spacer(Modifier.height(10.dp))
+    when {
+        isShortening -> Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(16.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = stringResource(R.string.shorten_loading),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        shortResult != null -> ShortUrlResult(
+            response = shortResult,
+            onCopy = onCopyShortUrl,
+            onShare = onShareShortUrl,
+        )
+
+        else -> {
+            FilledTonalButton(
+                onClick = onShorten,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                enabled = result.isShareable,
+                shape = RoundedCornerShape(14.dp),
+            ) {
+                Text(stringResource(R.string.shorten_button))
+            }
+            if (shortenError != null) {
+                Spacer(Modifier.height(8.dp))
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                ) {
+                    Text(
+                        text = stringResource(shortenError.messageRes()),
+                        modifier = Modifier.padding(12.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                if (shortenError.isRetryable()) {
+                    TextButton(onClick = onRetry) {
+                        Text(stringResource(R.string.shorten_retry))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShortUrlResult(
+    response: ShortenResponse,
+    onCopy: (String) -> Unit,
+    onShare: (String) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.short_url_title),
+            style = MaterialTheme.typography.titleSmall,
+        )
+        Spacer(Modifier.height(6.dp))
+        UrlBox(
+            label = stringResource(R.string.short_url_title),
+            url = response.shortUrl,
+            emphasized = true,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = shortUrlStatus(response),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        shortUrlWarnings(response).forEach { warning ->
+            Text(
+                text = "• $warning",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        var showTarget by rememberSaveable(response.shortUrl) { mutableStateOf(false) }
+        TextButton(onClick = { showTarget = !showTarget }) {
+            Text(stringResource(R.string.short_url_view_target))
+        }
+        if (showTarget) {
+            UrlBox(
+                label = stringResource(R.string.short_url_target_label),
+                url = response.targetUrl,
+                emphasized = false,
+            )
+        }
+
+        Spacer(Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Button(
+                onClick = { onCopy(response.shortUrl) },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp),
+                shape = RoundedCornerShape(14.dp),
+            ) {
+                Text(stringResource(R.string.short_url_copy))
+            }
+            FilledTonalButton(
+                onClick = { onShare(response.shortUrl) },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp),
+                shape = RoundedCornerShape(14.dp),
+            ) {
+                Text(stringResource(R.string.short_url_share))
+            }
+        }
+    }
+}
+
+@Composable
+private fun shortUrlStatus(response: ShortenResponse): String {
+    val cleaning = when (response.cleaningStatus) {
+        "cleaned" -> stringResource(R.string.short_url_status_cleaned)
+        "partial" -> stringResource(R.string.short_url_status_partial)
+        else -> stringResource(R.string.short_url_status_unchanged)
+    }
+    return if (response.wasResolved) {
+        stringResource(R.string.short_url_status_resolved) + " · " + cleaning
+    } else {
+        cleaning
+    }
+}
+
+@Composable
+private fun shortUrlWarnings(response: ShortenResponse): List<String> =
+    response.warnings.mapNotNull { warning ->
+        when (warning) {
+            "sensitive_parameters_preserved" -> stringResource(R.string.short_url_warning_sensitive)
+            "no_known_tracking_parameters_removed" -> stringResource(R.string.short_url_warning_no_known)
+            else -> null
+        }
+    }
+
+@StringRes
+private fun ShortenError.messageRes(): Int = when (this) {
+    ShortenError.INVALID_REQUEST -> R.string.error_invalid_request
+    ShortenError.WRAPPER_UNRESOLVED -> R.string.error_wrapper_unresolved
+    ShortenError.RATE_LIMITED -> R.string.error_rate_limited
+    ShortenError.SERVER_ERROR -> R.string.error_server
+    ShortenError.NETWORK -> R.string.error_network
+    ShortenError.TIMEOUT -> R.string.error_timeout
+    ShortenError.TLS -> R.string.error_tls
+    ShortenError.INVALID_RESPONSE -> R.string.error_invalid_response
+    ShortenError.UNVERIFIED -> R.string.error_unverified
+    ShortenError.CANCELLED -> R.string.error_cancelled
+}
+
+private fun ShortenError.isRetryable(): Boolean =
+    this != ShortenError.INVALID_REQUEST && this != ShortenError.WRAPPER_UNRESOLVED
 
 @Composable
 private fun StatusPill(result: CleaningResult) {
@@ -478,6 +695,10 @@ private fun HomeScreenPreview() {
             onSelectCandidate = {},
             onCopyUrl = {},
             onShareUrl = {},
+            onShorten = {},
+            onRetryShorten = {},
+            onCopyShortUrl = {},
+            onShareShortUrl = {},
             onRestoreOriginal = {},
             onOpenSettings = {},
         )

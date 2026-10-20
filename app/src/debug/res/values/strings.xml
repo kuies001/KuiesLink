@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Debug builds talk to the local backend through `adb reverse tcp:8787 tcp:8787`. -->
+    <string name="shortener_api_base_url" translatable="false">http://127.0.0.1:8787</string>
+</resources>

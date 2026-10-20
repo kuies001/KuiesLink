@@ -13,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import tw.kuies.link.R
+import tw.kuies.link.settings.PreferredShareTarget
 import tw.kuies.link.settings.ShareMode
 
 val LinkNotice.messageRes: Int
@@ -26,6 +27,7 @@ val LinkNotice.messageRes: Int
         LinkNotice.RestoredOriginal -> R.string.notice_restored
         LinkNotice.ClipboardEmpty -> R.string.notice_clipboard_empty
         LinkNotice.Copied -> R.string.notice_copied
+        LinkNotice.CopiedShortUrl -> R.string.notice_copied_short_url
     }
 
 @Composable
@@ -38,10 +40,15 @@ fun LinkApp(
     onSelectCandidate: (String) -> Unit,
     onCopyUrl: (String) -> Unit,
     onShareUrl: (String) -> Unit,
+    onShorten: () -> Unit,
+    onRetryShorten: () -> Unit,
+    onCopyShortUrl: (String) -> Unit,
+    onShareShortUrl: (String) -> Unit,
     onRestoreOriginal: () -> Unit,
     onOpenSettings: () -> Unit,
     onCloseSettings: () -> Unit,
     onShareModeChange: (ShareMode) -> Unit,
+    onPreferredShareTargetChange: (PreferredShareTarget) -> Unit,
     onNoticeShown: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -66,9 +73,11 @@ fun LinkApp(
         if (state.showSettings) {
             SettingsScreen(
                 shareMode = state.shareMode,
+                preferredShareTarget = state.preferredShareTarget,
                 contentPadding = innerPadding,
                 onBack = onCloseSettings,
                 onShareModeChange = onShareModeChange,
+                onPreferredShareTargetChange = onPreferredShareTargetChange,
             )
         } else {
             HomeScreen(
@@ -81,6 +90,10 @@ fun LinkApp(
                 onSelectCandidate = onSelectCandidate,
                 onCopyUrl = onCopyUrl,
                 onShareUrl = onShareUrl,
+                onShorten = onShorten,
+                onRetryShorten = onRetryShorten,
+                onCopyShortUrl = onCopyShortUrl,
+                onShareShortUrl = onShareShortUrl,
                 onRestoreOriginal = onRestoreOriginal,
                 onOpenSettings = onOpenSettings,
             )

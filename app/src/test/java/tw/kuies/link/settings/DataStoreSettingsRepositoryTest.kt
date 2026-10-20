@@ -87,4 +87,76 @@ class DataStoreSettingsRepositoryTest {
         }
         assertEquals(ShareMode.CONFIRM, ShareMode.fromStoredValue(null))
     }
+
+    @Test
+    fun defaultsToKuiesShortUrlTarget() = runTest {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val store = PreferenceDataStoreFactory.create(
+                scope = scope,
+                produceFile = { File(temporaryFolder.root, "target-default.preferences_pb") },
+            )
+
+            assertEquals(
+                PreferredShareTarget.KUIES_SHORT_URL,
+                DataStoreSettingsRepository(store).preferredShareTarget.first(),
+            )
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun preferredTargetSurvivesRepositoryRecreation() = runTest {
+        val file = File(temporaryFolder.root, "target-persist.preferences_pb")
+
+        val firstScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val firstRepository = DataStoreSettingsRepository(
+            PreferenceDataStoreFactory.create(scope = firstScope, produceFile = { file }),
+        )
+        firstRepository.setPreferredShareTarget(PreferredShareTarget.CLEAN_URL)
+        assertEquals(PreferredShareTarget.CLEAN_URL, firstRepository.preferredShareTarget.first())
+        firstScope.cancel()
+
+        val secondScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val reopened = DataStoreSettingsRepository(
+                PreferenceDataStoreFactory.create(scope = secondScope, produceFile = { file }),
+            )
+            assertEquals(PreferredShareTarget.CLEAN_URL, reopened.preferredShareTarget.first())
+            // The two settings are stored independently.
+            assertEquals(ShareMode.CONFIRM, reopened.shareMode.first())
+        } finally {
+            secondScope.cancel()
+        }
+    }
+
+    @Test
+    fun unknownStoredTargetFallsBackToShortUrl() = runTest {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val store = PreferenceDataStoreFactory.create(
+                scope = scope,
+                produceFile = { File(temporaryFolder.root, "target-unknown.preferences_pb") },
+            )
+            store.edit { preferences ->
+                preferences[DataStoreSettingsRepository.PREFERRED_SHARE_TARGET_KEY] = "not-a-target"
+            }
+
+            assertEquals(
+                PreferredShareTarget.KUIES_SHORT_URL,
+                DataStoreSettingsRepository(store).preferredShareTarget.first(),
+            )
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun targetStoredValuesRoundTrip() {
+        PreferredShareTarget.entries.forEach { target ->
+            assertEquals(target, PreferredShareTarget.fromStoredValue(target.storedValue))
+        }
+        assertEquals(PreferredShareTarget.KUIES_SHORT_URL, PreferredShareTarget.fromStoredValue(null))
+    }
 }

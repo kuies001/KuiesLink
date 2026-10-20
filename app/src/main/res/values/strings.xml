@@ -30,6 +30,33 @@
     <string name="result_share">分享</string>
     <string name="result_restore">還原原始網址</string>
 
+    <string name="shorten_button">清理並縮短網址</string>
+    <string name="shorten_loading">正在建立短網址…</string>
+    <string name="shorten_retry">重試</string>
+    <string name="short_url_title">短網址</string>
+    <string name="short_url_copy">複製短網址</string>
+    <string name="short_url_share">分享短網址</string>
+    <string name="short_url_copy_label">KuiesLink 短網址</string>
+    <string name="short_url_view_target">查看導向網址</string>
+    <string name="short_url_target_label">導向網址</string>
+    <string name="short_url_status_cleaned">伺服器已清理追蹤參數</string>
+    <string name="short_url_status_unchanged">伺服器確認無需清理</string>
+    <string name="short_url_status_partial">部分參數無法自動清理</string>
+    <string name="short_url_status_resolved">已還原包裝連結</string>
+    <string name="short_url_warning_sensitive">保留可能含敏感資訊的參數</string>
+    <string name="short_url_warning_no_known">沒有偵測到已知的追蹤參數</string>
+
+    <string name="error_invalid_request">網址格式不被接受</string>
+    <string name="error_wrapper_unresolved">無法還原這個包裝連結</string>
+    <string name="error_rate_limited">請求太頻繁，請稍後再試</string>
+    <string name="error_server">短網址服務暫時無法使用</string>
+    <string name="error_network">無法連線到短網址服務</string>
+    <string name="error_timeout">無法確認是否已建立短網址；重試可能會再建立一個</string>
+    <string name="error_tls">無法建立安全連線</string>
+    <string name="error_invalid_response">短網址服務回應無法辨識</string>
+    <string name="error_unverified">無法確認伺服器是否真的清理了這個網址</string>
+    <string name="error_cancelled">縮址請求已取消</string>
+
     <string name="notice_no_url">找不到可清理的 HTTP 或 HTTPS 網址</string>
     <string name="notice_multiple_urls">這段文字裡有多個網址，請先選擇一個</string>
     <string name="notice_empty_share">分享內容是空的，沒有網址可以清理</string>
@@ -39,6 +66,7 @@
     <string name="notice_restored">已把原始網址放回輸入框</string>
     <string name="notice_clipboard_empty">剪貼簿裡沒有文字</string>
     <string name="notice_copied">已複製乾淨網址</string>
+    <string name="notice_copied_short_url">已複製短網址</string>
 
     <string name="settings_title">設定</string>
     <string name="settings_mode_title">分享模式</string>
@@ -46,15 +74,24 @@
     <string name="settings_mode_confirm_body">先顯示清理結果，由你決定要複製還是分享。</string>
     <string name="settings_mode_quick_title">快速模式</string>
     <string name="settings_mode_quick_body">清理後直接開啟系統分享選單。網址沒有變更或無法判斷時，會回到確認畫面。</string>
+    <string name="preferred_target_title">預設分享網址類型</string>
+    <string name="preferred_target_clean_title">乾淨網址</string>
+    <string name="preferred_target_clean_body">快速模式直接分享本機清理後的網址，不連線到伺服器。</string>
+    <string name="preferred_target_short_title">KuiesLink 短網址</string>
+    <string name="preferred_target_short_body">快速模式會把原始網址送到 u.kuies.tw 清理並建立短網址，再分享短網址。</string>
     <string name="settings_about_title">關於</string>
     <string name="settings_version">版本 %1$s</string>
     <string name="settings_privacy_title">隱私說明</string>
-    <string name="settings_privacy_body">所有網址清理都在這支手機上完成。KuiesLink 不會上傳、儲存或分析你貼上的網址，也不需要網路權限。App 只會在裝置上保存你的分享模式設定。</string>
+    <string name="settings_privacy_body">一般清理都在這支手機上完成。只有在你按下「清理並縮短網址」，或快速模式預設分享短網址時，原始網址才會送到 u.kuies.tw 建立短網址；伺服器不會保存你貼上的其他內容。App 只在裝置上保存你的分享模式與網址類型設定。</string>
     <string name="settings_github_link">kuies001/kuies-short-url</string>
-    <string name="settings_v010_note">只做本機清理，不會產生短網址。</string>
+    <string name="settings_v010_note">短網址是可選功能；不使用時不會連線到伺服器。</string>
 
     <string name="share_chooser_title">分享乾淨網址</string>
+    <string name="short_share_chooser_title">分享短網址</string>
     <string name="quick_notice_cleaned">已移除 %1$d 個追蹤參數，可以直接分享</string>
     <string name="quick_notice_unchanged">網址無需清理，可以直接分享</string>
+    <string name="quick_notice_short_url">已建立短網址，可以直接分享</string>
     <string name="settings_back">返回</string>
+
+    <string name="shortener_api_base_url" translatable="false">https://u.kuies.tw</string>
 </resources>

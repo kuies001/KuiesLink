@@ -17,26 +17,38 @@ val Context.linkSettingsDataStore: DataStore<Preferences> by preferencesDataStor
 interface SettingsRepository {
     val shareMode: Flow<ShareMode>
     suspend fun setShareMode(mode: ShareMode)
+    val preferredShareTarget: Flow<PreferredShareTarget>
+    suspend fun setPreferredShareTarget(target: PreferredShareTarget)
 }
 
 /**
- * Persists the share mode only. URLs are never written to disk.
+ * Persists the share mode and the preferred share target only. URLs are never written to disk.
  */
 class DataStoreSettingsRepository(
     private val dataStore: DataStore<Preferences>,
 ) : SettingsRepository {
 
-    override val shareMode: Flow<ShareMode> = dataStore.data
+    private val preferences: Flow<Preferences> = dataStore.data
         .catch { error ->
             if (error is IOException) emit(emptyPreferences()) else throw error
         }
-        .map { preferences -> ShareMode.fromStoredValue(preferences[SHARE_MODE_KEY]) }
+
+    override val shareMode: Flow<ShareMode> = preferences
+        .map { stored -> ShareMode.fromStoredValue(stored[SHARE_MODE_KEY]) }
+
+    override val preferredShareTarget: Flow<PreferredShareTarget> = preferences
+        .map { stored -> PreferredShareTarget.fromStoredValue(stored[PREFERRED_SHARE_TARGET_KEY]) }
 
     override suspend fun setShareMode(mode: ShareMode) {
-        dataStore.edit { preferences -> preferences[SHARE_MODE_KEY] = mode.storedValue }
+        dataStore.edit { stored -> stored[SHARE_MODE_KEY] = mode.storedValue }
+    }
+
+    override suspend fun setPreferredShareTarget(target: PreferredShareTarget) {
+        dataStore.edit { stored -> stored[PREFERRED_SHARE_TARGET_KEY] = target.storedValue }
     }
 
     companion object {
         internal val SHARE_MODE_KEY = stringPreferencesKey("share_mode")
+        internal val PREFERRED_SHARE_TARGET_KEY = stringPreferencesKey("preferred_share_target")
     }
 }

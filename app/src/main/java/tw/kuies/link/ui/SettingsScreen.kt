@@ -37,15 +37,18 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import tw.kuies.link.R
+import tw.kuies.link.settings.PreferredShareTarget
 import tw.kuies.link.settings.ShareMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     shareMode: ShareMode,
+    preferredShareTarget: PreferredShareTarget,
     contentPadding: PaddingValues,
     onBack: () -> Unit,
     onShareModeChange: (ShareMode) -> Unit,
+    onPreferredShareTargetChange: (PreferredShareTarget) -> Unit,
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
@@ -96,6 +99,34 @@ fun SettingsScreen(
                         description = stringResource(R.string.settings_mode_quick_body),
                         selected = shareMode == ShareMode.QUICK,
                         onSelect = { onShareModeChange(ShareMode.QUICK) },
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+            SectionTitle(stringResource(R.string.preferred_target_title))
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            ) {
+                Column {
+                    ModeOption(
+                        title = stringResource(R.string.preferred_target_clean_title),
+                        description = stringResource(R.string.preferred_target_clean_body),
+                        selected = preferredShareTarget == PreferredShareTarget.CLEAN_URL,
+                        onSelect = { onPreferredShareTargetChange(PreferredShareTarget.CLEAN_URL) },
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    ModeOption(
+                        title = stringResource(R.string.preferred_target_short_title),
+                        description = stringResource(R.string.preferred_target_short_body),
+                        selected = preferredShareTarget == PreferredShareTarget.KUIES_SHORT_URL,
+                        onSelect = {
+                            onPreferredShareTargetChange(PreferredShareTarget.KUIES_SHORT_URL)
+                        },
                     )
                 }
             }
