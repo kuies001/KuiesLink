@@ -12,8 +12,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -31,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import tw.kuies.link.settings.PreferredShareTarget
 import tw.kuies.link.settings.ShareMode
@@ -167,8 +172,8 @@ fun SettingsScreen(
         SettingsDialog.ShareMode -> ChoiceDialog(
             title = "分享模式",
             options = listOf(
-                ShareMode.CONFIRM to "確認模式",
-                ShareMode.QUICK to "快速模式",
+                Choice(ShareMode.CONFIRM, "確認模式", "先看清結果再分享"),
+                Choice(ShareMode.QUICK, "快速模式", "清理後直接開啟分享選單"),
             ),
             selected = state.shareMode,
             onSelect = onShareModeChange,
@@ -178,8 +183,8 @@ fun SettingsScreen(
         SettingsDialog.Target -> ChoiceDialog(
             title = "預設分享目標",
             options = listOf(
-                PreferredShareTarget.KUIES_SHORT_URL to "Kuies 短網址",
-                PreferredShareTarget.CLEAN_URL to "乾淨原網址",
+                Choice(PreferredShareTarget.KUIES_SHORT_URL, "Kuies 短網址", "建立 u.kuies.tw 短網址"),
+                Choice(PreferredShareTarget.CLEAN_URL, "乾淨原網址", "只分享清理後的原網址"),
             ),
             selected = state.preferredShareTarget,
             onSelect = onPreferredShareTargetChange,
@@ -189,9 +194,9 @@ fun SettingsScreen(
         SettingsDialog.Theme -> ChoiceDialog(
             title = "深色模式",
             options = listOf(
-                ThemeMode.SYSTEM to "跟隨系統",
-                ThemeMode.LIGHT to "淺色",
-                ThemeMode.DARK to "深色",
+                Choice(ThemeMode.SYSTEM, "跟隨系統"),
+                Choice(ThemeMode.LIGHT, "淺色"),
+                Choice(ThemeMode.DARK, "深色"),
             ),
             selected = state.themeMode,
             onSelect = onThemeModeChange,
@@ -218,39 +223,58 @@ fun SettingsScreen(
     }
 }
 
+private data class Choice<T>(
+    val value: T,
+    val label: String,
+    val description: String? = null,
+)
+
 @Composable
 private fun <T> ChoiceDialog(
     title: String,
-    options: List<Pair<T, String>>,
+    options: List<Choice<T>>,
     selected: T,
     onSelect: (T) -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
+        title = { Text(title, style = MaterialTheme.typography.titleMedium) },
         text = {
-            Column {
-                options.forEach { (value, label) ->
+            Column(Modifier.selectableGroup()) {
+                options.forEach { option ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable {
-                                onSelect(value)
-                                onDismiss()
-                            }
-                            .padding(vertical = Spacing.md),
+                            .heightIn(min = 56.dp)
+                            .selectable(
+                                selected = option.value == selected,
+                                role = Role.RadioButton,
+                                onClick = {
+                                    onSelect(option.value)
+                                    onDismiss()
+                                },
+                            )
+                            .padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         RadioButton(
-                            selected = value == selected,
-                            onClick = {
-                                onSelect(value)
-                                onDismiss()
-                            },
+                            selected = option.value == selected,
+                            onClick = null,
+                            modifier = Modifier.size(40.dp),
                         )
                         Spacer(Modifier.width(Spacing.sm))
-                        Text(text = label, style = MaterialTheme.typography.bodyLarge)
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = option.label, style = MaterialTheme.typography.titleSmall)
+                            option.description?.let { description ->
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    text = description,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
                     }
                 }
             }

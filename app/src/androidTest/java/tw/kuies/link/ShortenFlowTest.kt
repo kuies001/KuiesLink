@@ -1,7 +1,9 @@
 package tw.kuies.link
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -30,7 +32,9 @@ class ShortenFlowTest {
     fun manualShortenRendersTheServerResponse() {
         composeRule.onNode(hasSetTextAction()).performClick()
             .performTextInput("https://www.instagram.com/reel/DcClyQgikR4/?igsh=MW9xZ2F0")
-        composeRule.onNodeWithText("清理並縮短網址").performScrollTo().performClick()
+        composeRule.onNode(hasText("清理並縮短網址") and hasClickAction())
+            .performScrollTo()
+            .performClick()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("建立短網址").performScrollTo().performClick()
@@ -53,7 +57,9 @@ class ShortenFlowTest {
     fun unresolvedWrapperShowsNeutralRecoveryActions() {
         composeRule.onNode(hasSetTextAction()).performClick()
             .performTextInput("https://www.threads.net/share/AbCdEf")
-        composeRule.onNodeWithText("清理並縮短網址").performScrollTo().performClick()
+        composeRule.onNode(hasText("清理並縮短網址") and hasClickAction())
+            .performScrollTo()
+            .performClick()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("暫時無法還原連結").assertIsDisplayed()

@@ -1,8 +1,12 @@
 package tw.kuies.link
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -36,7 +40,7 @@ class MainActivityTest {
         input("https://example.com/p?id=7")
         clean()
 
-        composeRule.onNodeWithText("未發現已知追蹤參數").assertIsDisplayed()
+        composeRule.onAllNodesWithText("未發現已知追蹤參數").onFirst().assertIsDisplayed()
     }
 
     @Test
@@ -69,7 +73,9 @@ class MainActivityTest {
     @Test
     fun multipleUrlsAreListedInsteadOfGuessed() {
         input("https://a.example/1 https://b.example/2")
-        composeRule.onNodeWithText("清理並縮短網址").performScrollTo().performClick()
+        composeRule.onNode(hasText("清理並縮短網址") and hasClickAction())
+            .performScrollTo()
+            .performClick()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("找到 2 個網址").performScrollTo().assertIsDisplayed()
@@ -80,7 +86,9 @@ class MainActivityTest {
     }
 
     private fun clean() {
-        composeRule.onNodeWithText("清理並縮短網址").performScrollTo().performClick()
+        composeRule.onNode(hasText("清理並縮短網址") and hasClickAction())
+            .performScrollTo()
+            .performClick()
         composeRule.waitForIdle()
     }
 }

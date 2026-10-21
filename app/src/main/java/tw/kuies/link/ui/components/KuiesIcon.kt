@@ -152,13 +152,14 @@ fun KuiesIcon(
                     rotate(index * 45f) {
                         drawRoundRect(
                             color = tint,
-                            topLeft = Offset(w * 0.44f, h * 0.02f),
-                            size = Size(w * 0.12f, h * 0.20f),
+                            topLeft = Offset(w * 0.43f, h * 0.02f),
+                            size = Size(w * 0.14f, h * 0.22f),
                             cornerRadius = CornerRadius(w * 0.04f),
                         )
                     }
                 }
-                drawCircle(tint, radius = w * 0.20f, style = Stroke(width = w * 0.075f))
+                drawCircle(tint, radius = w * 0.26f, style = Stroke(width = w * 0.075f))
+                drawCircle(tint, radius = w * 0.10f, style = Stroke(width = w * 0.075f))
             }
 
             KuiesIconKind.Refresh -> {

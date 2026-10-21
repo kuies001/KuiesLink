@@ -418,26 +418,39 @@ fun SettingsRow(
                 )
             }
         }
-        when {
-            checked != null && onCheckedChange != null -> Switch(
+        if (checked != null && onCheckedChange != null) {
+            Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
             )
-
-            value != null -> Text(
-                text = value,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-
-            onClick != null -> KuiesIcon(
-                KuiesIconKind.ChevronDown,
-                size = 20.dp,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.rotate(-90f),
-            )
+        } else if (value != null || onClick != null) {
+            Spacer(Modifier.width(Spacing.md))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (value != null) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                    ) {
+                        Text(
+                            text = value,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                if (onClick != null) {
+                    Spacer(Modifier.width(Spacing.xs))
+                    KuiesIcon(
+                        KuiesIconKind.ChevronDown,
+                        size = 20.dp,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.rotate(-90f),
+                    )
+                }
+            }
         }
     }
 }
@@ -455,38 +468,33 @@ fun PlatformSourceRow(modifier: Modifier = Modifier) {
         )
         Spacer(Modifier.height(Spacing.md))
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xl)) {
-            PlatformBadge("IG", "Instagram")
-            PlatformBadge("Th", "Threads")
-            PlatformBadge("f", "Facebook")
+            SocialPlatform.entries.forEach { platform ->
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        SocialPlatformIcon(
+                            platform = platform,
+                            size = 26.dp,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Spacer(Modifier.height(Spacing.xs))
+                    Text(
+                        text = platform.label,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
         Spacer(Modifier.height(Spacing.sm))
         Text(
             text = "支援各大社群 App 分享",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
-private fun PlatformBadge(monogram: String, label: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = monogram,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Spacer(Modifier.height(Spacing.xs))
-        Text(
-            text = label,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
