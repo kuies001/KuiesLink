@@ -1,36 +1,41 @@
 package tw.kuies.link.data
 
-data class RemovedParameter(
-    val name: String,
-    val value: String?,
-)
-
 data class ShortenResponse(
     val shortUrl: String,
     val targetUrl: String,
-    val originalUrl: String?,
-    val resolvedUrl: String?,
     val processingStatus: String,
     val resolutionStatus: String,
     val cleaningStatus: String,
     val removedCount: Int,
-    val removedParameters: List<RemovedParameter>,
+    val removedParams: List<String>,
     val warnings: List<String>,
+    val cleaningRulesVersion: String?,
+    val cleaningScope: String?,
 ) {
-    val isCompleted: Boolean get() = processingStatus == "completed"
+    /** The server removed at least one known tracking parameter. */
+    val isCleaned: Boolean get() = cleaningStatus == STATUS_CLEANED
 
-    /** Server-side evidence exists; never infer this from HTTP 201 alone. */
-    val isVerifiedClean: Boolean
-        get() = processingStatus == "completed" && cleaningStatus in VERIFIED_CLEANING
+    /** The server has rules for this host and found nothing to remove. */
+    val isUnchanged: Boolean get() = cleaningStatus == STATUS_UNCHANGED
 
-    val wasResolved: Boolean get() = resolutionStatus == "resolved"
+    /**
+     * The host is outside the server's cleaning policy. The short URL exists, but the target may
+     * still carry tracking parameters, so the UI must not claim it was cleaned.
+     */
+    val isUnsupported: Boolean get() = cleaningStatus == STATUS_UNSUPPORTED
+
+    val wasResolved: Boolean get() = resolutionStatus == RESOLVED
 
     val hasKnownTrackingRemoved: Boolean get() = removedCount > 0
 
-    val isPartial: Boolean get() = cleaningStatus == "partial"
-
     companion object {
-        val VERIFIED_CLEANING = setOf("cleaned", "unchanged")
+        const val STATUS_CLEANED = "CLEANED"
+        const val STATUS_UNCHANGED = "UNCHANGED"
+        const val STATUS_UNSUPPORTED = "UNSUPPORTED"
+        const val RESOLVED = "RESOLVED"
+
+        /** cleaning_status values the deployed backend returns on a successful 201. */
+        val SUCCESS_CLEANING = setOf(STATUS_CLEANED, STATUS_UNCHANGED, STATUS_UNSUPPORTED)
     }
 }
 

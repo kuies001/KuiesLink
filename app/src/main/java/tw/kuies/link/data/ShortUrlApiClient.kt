@@ -20,8 +20,9 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 
 /**
- * Strict-mode client. HTTPS only; only a debug build may point at a localhost HTTP endpoint
- * (used with `adb reverse` for end-to-end verification).
+ * Client for the deployed KuiesLink contract: `strict_cleaning` makes the server resolve social
+ * wrappers before creating a short code. HTTPS only; only a debug build may point at a localhost
+ * HTTP endpoint (used with `adb reverse` for end-to-end verification).
  */
 class ShortUrlApiClient(
     baseUrl: String,
@@ -34,7 +35,7 @@ class ShortUrlApiClient(
         val payload = buildJsonObject {
             put("url", url)
             put("clean_tracking", true)
-            put("mode", "strict")
+            put("strict_cleaning", true)
             put("fast_response", true)
         }.toString()
 

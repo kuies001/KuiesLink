@@ -41,10 +41,11 @@
     <string name="short_url_target_label">導向網址</string>
     <string name="short_url_status_cleaned">伺服器已清理追蹤參數</string>
     <string name="short_url_status_unchanged">伺服器確認無需清理</string>
-    <string name="short_url_status_partial">部分參數無法自動清理</string>
+    <string name="short_url_status_unsupported">伺服器沒有這個網站的清理規則</string>
     <string name="short_url_status_resolved">已還原包裝連結</string>
-    <string name="short_url_warning_sensitive">保留可能含敏感資訊的參數</string>
-    <string name="short_url_warning_no_known">沒有偵測到已知的追蹤參數</string>
+    <string name="short_url_warning_wrapper_kept">包裝連結未還原，已保留原始網址</string>
+    <string name="short_url_warning_no_rules">沒有可用的清理規則</string>
+    <string name="short_url_warning_scope">只清理已知的追蹤參數</string>
 
     <string name="error_invalid_request">網址格式不被接受</string>
     <string name="error_wrapper_unresolved">無法還原這個包裝連結</string>

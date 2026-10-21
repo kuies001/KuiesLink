@@ -506,8 +506,8 @@ private fun ShortUrlResult(
 @Composable
 private fun shortUrlStatus(response: ShortenResponse): String {
     val cleaning = when (response.cleaningStatus) {
-        "cleaned" -> stringResource(R.string.short_url_status_cleaned)
-        "partial" -> stringResource(R.string.short_url_status_partial)
+        ShortenResponse.STATUS_CLEANED -> stringResource(R.string.short_url_status_cleaned)
+        ShortenResponse.STATUS_UNSUPPORTED -> stringResource(R.string.short_url_status_unsupported)
         else -> stringResource(R.string.short_url_status_unchanged)
     }
     return if (response.wasResolved) {
@@ -521,8 +521,10 @@ private fun shortUrlStatus(response: ShortenResponse): String {
 private fun shortUrlWarnings(response: ShortenResponse): List<String> =
     response.warnings.mapNotNull { warning ->
         when (warning) {
-            "sensitive_parameters_preserved" -> stringResource(R.string.short_url_warning_sensitive)
-            "no_known_tracking_parameters_removed" -> stringResource(R.string.short_url_warning_no_known)
+            "social_share_wrapper_unresolved_original_kept" ->
+                stringResource(R.string.short_url_warning_wrapper_kept)
+            "cleaning_rules_unavailable" -> stringResource(R.string.short_url_warning_no_rules)
+            "cleaning_scope_supported_params_only" -> stringResource(R.string.short_url_warning_scope)
             else -> null
         }
     }

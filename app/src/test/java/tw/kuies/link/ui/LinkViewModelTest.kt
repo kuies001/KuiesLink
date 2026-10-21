@@ -277,7 +277,7 @@ class LinkViewModelTest {
             computeDispatcher = dispatcher,
             shortenRequest = { url ->
                 sent += url
-                success(originalUrl = url)
+                success()
             },
         )
         val requests = collectShareRequests(viewModel)
@@ -547,23 +547,22 @@ class LinkViewModelTest {
     private fun success(
         shortUrl: String = "https://u.kuies.tw/abc",
         targetUrl: String = "https://example.com/p?id=7",
-        originalUrl: String? = null,
         removedCount: Int = 1,
-        cleaningStatus: String = "cleaned",
-        resolutionStatus: String = "not_needed",
+        cleaningStatus: String = "CLEANED",
+        resolutionStatus: String = "NOT_WRAPPER",
         warnings: List<String> = emptyList(),
     ): ShortenResult = ShortenResult.Success(
         ShortenResponse(
             shortUrl = shortUrl,
             targetUrl = targetUrl,
-            originalUrl = originalUrl,
-            resolvedUrl = null,
-            processingStatus = "completed",
+            processingStatus = cleaningStatus,
             resolutionStatus = resolutionStatus,
             cleaningStatus = cleaningStatus,
             removedCount = removedCount,
-            removedParameters = emptyList(),
+            removedParams = emptyList(),
             warnings = warnings,
+            cleaningRulesVersion = null,
+            cleaningScope = null,
         ),
     )
 

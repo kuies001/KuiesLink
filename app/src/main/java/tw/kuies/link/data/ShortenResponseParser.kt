@@ -7,10 +7,11 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 
 /**
- * Maps an HTTP status + body to a typed result.
+ * Maps an HTTP status + body to a typed result, following the deployed backend contract
+ * (`strict_cleaning`, uppercase statuses, `removed_params`).
  *
- * A 201 is not success on its own: the strict contract must also carry a completed processing
- * status and known cleaning/resolution statuses, otherwise the result is [ShortenError.UNVERIFIED].
+ * A 201 is not success on its own: the response must carry a known cleaning status and a
+ * consistent processing status, otherwise the result is [ShortenError.UNVERIFIED].
  */
 object ShortenResponseParser {
 
@@ -35,15 +36,20 @@ object ShortenResponseParser {
         if (processing.isNullOrBlank() || resolution.isNullOrBlank() || cleaning.isNullOrBlank()) {
             return ShortenResult.Failure(ShortenError.UNVERIFIED, httpCode)
         }
-        if (processing != "completed" || resolution !in RESOLUTION_STATUSES || cleaning !in CLEANING_STATUSES) {
+        if (cleaning !in ShortenResponse.SUCCESS_CLEANING) {
+            return ShortenResult.Failure(ShortenError.UNVERIFIED, httpCode)
+        }
+        if (resolution !in RESOLUTION_STATUSES) {
+            return ShortenResult.Failure(ShortenError.UNVERIFIED, httpCode)
+        }
+        // On a successful 201 the backend mirrors the cleaning status as the overall status;
+        // anything else would be a contradictory body and must not be presented as cleaned.
+        if (processing != cleaning) {
             return ShortenResult.Failure(ShortenError.UNVERIFIED, httpCode)
         }
 
-        val removed = root.array("removed_parameters")
-            .mapNotNull { element -> (element as? JsonObject)?.let { param ->
-                val name = param.string("name") ?: return@let null
-                RemovedParameter(name, param.string("value"))
-            } }
+        val removed = root.array("removed_params")
+            .mapNotNull { (it as? JsonPrimitive)?.takeIf { value -> value.isString }?.content }
         val removedCount = root.int("removed_count") ?: removed.size
         if (removedCount < 0) return ShortenResult.Failure(ShortenError.INVALID_RESPONSE, httpCode)
 
@@ -51,20 +57,19 @@ object ShortenResponseParser {
             ShortenResponse(
                 shortUrl = shortUrl,
                 targetUrl = targetUrl,
-                originalUrl = root.string("original_url"),
-                resolvedUrl = root.string("resolved_url"),
                 processingStatus = processing,
                 resolutionStatus = resolution,
                 cleaningStatus = cleaning,
                 removedCount = removedCount,
-                removedParameters = removed,
+                removedParams = removed,
                 warnings = root.array("warnings").mapNotNull { (it as? JsonPrimitive)?.content },
+                cleaningRulesVersion = root.string("cleaning_rules_version"),
+                cleaningScope = root.string("cleaning_scope"),
             ),
         )
     }
 
-    private val RESOLUTION_STATUSES = setOf("not_needed", "resolved")
-    private val CLEANING_STATUSES = setOf("cleaned", "unchanged", "partial")
+    private val RESOLUTION_STATUSES = setOf("NOT_WRAPPER", "RESOLVED")
 }
 
 private fun JsonObject.string(name: String): String? =
