@@ -29,6 +29,7 @@ import tw.kuies.link.domain.UrlCleaner
 import tw.kuies.link.settings.PreferredShareTarget
 import tw.kuies.link.settings.SettingsRepository
 import tw.kuies.link.settings.ShareMode
+import tw.kuies.link.settings.ThemeMode
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LinkViewModelTest {
@@ -573,9 +574,15 @@ class LinkViewModelTest {
     ) : SettingsRepository {
         private val state = MutableStateFlow(initial)
         private val targetState = MutableStateFlow(initialTarget)
+        private val themeState = MutableStateFlow(ThemeMode.SYSTEM)
+        private val expandState = MutableStateFlow(false)
+        private val technicalState = MutableStateFlow(false)
 
         override val shareMode: Flow<ShareMode> = state
         override val preferredShareTarget: Flow<PreferredShareTarget> = targetState
+        override val themeMode: Flow<ThemeMode> = themeState
+        override val expandDetails: Flow<Boolean> = expandState
+        override val showTechnicalInfo: Flow<Boolean> = technicalState
 
         val current: ShareMode get() = state.value
         val currentTarget: PreferredShareTarget get() = targetState.value
@@ -587,15 +594,33 @@ class LinkViewModelTest {
         override suspend fun setPreferredShareTarget(target: PreferredShareTarget) {
             targetState.value = target
         }
+
+        override suspend fun setThemeMode(mode: ThemeMode) {
+            themeState.value = mode
+        }
+
+        override suspend fun setExpandDetails(enabled: Boolean) {
+            expandState.value = enabled
+        }
+
+        override suspend fun setShowTechnicalInfo(enabled: Boolean) {
+            technicalState.value = enabled
+        }
     }
 
     /** Emits nothing for the share mode until the test decides the stored setting has been read. */
     private class ControlledSettings : SettingsRepository {
         private val state = MutableSharedFlow<ShareMode>(replay = 1)
         private val targetState = MutableStateFlow(PreferredShareTarget.CLEAN_URL)
+        private val themeState = MutableStateFlow(ThemeMode.SYSTEM)
+        private val expandState = MutableStateFlow(false)
+        private val technicalState = MutableStateFlow(false)
 
         override val shareMode: Flow<ShareMode> = state
         override val preferredShareTarget: Flow<PreferredShareTarget> = targetState
+        override val themeMode: Flow<ThemeMode> = themeState
+        override val expandDetails: Flow<Boolean> = expandState
+        override val showTechnicalInfo: Flow<Boolean> = technicalState
 
         override suspend fun setShareMode(mode: ShareMode) {
             state.emit(mode)
@@ -603,6 +628,18 @@ class LinkViewModelTest {
 
         override suspend fun setPreferredShareTarget(target: PreferredShareTarget) {
             targetState.value = target
+        }
+
+        override suspend fun setThemeMode(mode: ThemeMode) {
+            themeState.value = mode
+        }
+
+        override suspend fun setExpandDetails(enabled: Boolean) {
+            expandState.value = enabled
+        }
+
+        override suspend fun setShowTechnicalInfo(enabled: Boolean) {
+            technicalState.value = enabled
         }
 
         fun emit(mode: ShareMode) {

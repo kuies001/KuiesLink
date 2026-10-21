@@ -13,6 +13,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.annotation.StringRes
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -22,6 +23,7 @@ import tw.kuies.link.data.OkHttpShortUrlRepository
 import tw.kuies.link.data.ShortUrlApiClient
 import tw.kuies.link.domain.CleaningStatus
 import tw.kuies.link.settings.DataStoreSettingsRepository
+import tw.kuies.link.settings.ThemeMode
 import tw.kuies.link.settings.linkSettingsDataStore
 import tw.kuies.link.ui.LinkApp
 import tw.kuies.link.ui.LinkNotice
@@ -64,9 +66,15 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            KuiesLinkTheme {
-                val state by viewModel.uiState.collectAsStateWithLifecycle()
+            val state by viewModel.uiState.collectAsStateWithLifecycle()
+            val systemDark = isSystemInDarkTheme()
+            val darkTheme = when (state.themeMode) {
+                ThemeMode.SYSTEM -> systemDark
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+            }
 
+            KuiesLinkTheme(darkTheme = darkTheme) {
                 LaunchedEffect(viewModel) {
                     viewModel.shareRequests.collect { request -> launchChooser(request) }
                 }
@@ -93,11 +101,14 @@ class MainActivity : ComponentActivity() {
                             chooserTitleRes = R.string.short_share_chooser_title,
                         )
                     },
-                    onRestoreOriginal = viewModel::onRestoreOriginal,
+                    onBackToHome = viewModel::onBackToHome,
                     onOpenSettings = viewModel::onOpenSettings,
                     onCloseSettings = viewModel::onCloseSettings,
                     onShareModeChange = viewModel::onShareModeChange,
                     onPreferredShareTargetChange = viewModel::onPreferredShareTargetChange,
+                    onThemeModeChange = viewModel::onThemeModeChange,
+                    onExpandDetailsChange = viewModel::onExpandDetailsChange,
+                    onShowTechnicalInfoChange = viewModel::onShowTechnicalInfoChange,
                     onNoticeShown = viewModel::onNoticeShown,
                 )
             }

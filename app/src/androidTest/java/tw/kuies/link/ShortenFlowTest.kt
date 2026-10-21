@@ -16,8 +16,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Drives the real shortener path against the debug endpoint (`http://127.0.0.1:8787` reached
- * through `adb reverse`). Run with `adb install -r` + `am instrument`, never the connected task.
+ * Drives the real shortener path against the debug endpoint (localhost through `adb reverse`, or
+ * the production endpoint when the debug resource is pointed there). Run with `adb install -r` +
+ * `am instrument`, never the connected task.
  */
 @RunWith(AndroidJUnit4::class)
 class ShortenFlowTest {
@@ -29,17 +30,16 @@ class ShortenFlowTest {
     fun manualShortenRendersTheServerResponse() {
         composeRule.onNode(hasSetTextAction()).performClick()
             .performTextInput("https://www.instagram.com/reel/DcClyQgikR4/?igsh=MW9xZ2F0")
-
-        composeRule.onNodeWithText("清理網址").performScrollTo().performClick()
+        composeRule.onNodeWithText("清理並縮短網址").performScrollTo().performClick()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("清理並縮短網址").performScrollTo().performClick()
+        composeRule.onNodeWithText("建立短網址").performScrollTo().performClick()
         composeRule.waitUntil(timeoutMillis = 20_000) {
-            composeRule.onAllNodesWithText("伺服器已清理追蹤參數")
+            composeRule.onAllNodesWithText("已建立乾淨短網址")
                 .fetchSemanticsNodes().isNotEmpty()
         }
 
-        composeRule.onNodeWithText("伺服器已清理追蹤參數").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("已建立乾淨短網址").performScrollTo().assertIsDisplayed()
         val baseUrl = InstrumentationRegistry.getInstrumentation()
             .targetContext.getString(R.string.shortener_api_base_url)
             .trimEnd('/') + "/"
@@ -50,20 +50,14 @@ class ShortenFlowTest {
     }
 
     @Test
-    fun backendWrapperErrorIsShownWithoutRetry() {
+    fun unresolvedWrapperShowsNeutralRecoveryActions() {
         composeRule.onNode(hasSetTextAction()).performClick()
             .performTextInput("https://www.threads.net/share/AbCdEf")
-
-        composeRule.onNodeWithText("清理網址").performScrollTo().performClick()
+        composeRule.onNodeWithText("清理並縮短網址").performScrollTo().performClick()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("清理並縮短網址").performScrollTo().performClick()
-        composeRule.waitUntil(timeoutMillis = 20_000) {
-            composeRule.onAllNodesWithText("無法還原這個包裝連結")
-                .fetchSemanticsNodes().isNotEmpty()
-        }
-
-        composeRule.onNodeWithText("無法還原這個包裝連結").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("重試").assertDoesNotExist()
+        composeRule.onNodeWithText("暫時無法還原連結").assertIsDisplayed()
+        composeRule.onNodeWithText("複製原始網址").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("重新處理").performScrollTo().assertIsDisplayed()
     }
 }

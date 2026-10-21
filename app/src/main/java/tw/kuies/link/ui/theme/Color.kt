@@ -2,48 +2,54 @@ package tw.kuies.link.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Light palette: sage green primary, warm white background, apricot accent.
-val SagePrimary = Color(0xFF4E6F55)
-val SageOnPrimary = Color(0xFFFFFFFF)
-val SagePrimaryContainer = Color(0xFFDCEBD6)
-val SageOnPrimaryContainer = Color(0xFF15281A)
+// Light palette — warm white + low-saturation sage (design board v0.3.0).
+// The primary is darkened from the board's #6D9A85 so white button labels keep WCAG AA contrast;
+// the lighter sage stays available as an accent for large icons and tints.
+val SagePrimary = Color(0xFF4F7D67)
+val SagePrimaryPressed = Color(0xFF3D6452)
+val SageAccent = Color(0xFF6D9A85)
+val SageContainer = Color(0xFFE6F0EA)
+val SageOnContainer = Color(0xFF24382D)
 
-val ApricotSecondary = Color(0xFF8A5A32)
-val ApricotOnSecondary = Color(0xFFFFFFFF)
-val ApricotContainer = Color(0xFFF6DFC7)
-val ApricotOnContainer = Color(0xFF2F1C0B)
+val WarmBackground = Color(0xFFFFFDF7)
+val WarmSurface = Color(0xFFFFFFFF)
+val WarmSurfaceVariant = Color(0xFFF5F0E8)
+val WarmSurfaceMuted = Color(0xFFFAF6EE)
 
-val WarmBackground = Color(0xFFFDFBF6)
-val WarmSurface = Color(0xFFFFFDF8)
-val WarmSurfaceVariant = Color(0xFFEDE7DC)
-val InkOnBackground = Color(0xFF1D1F1B)
-val InkOnSurfaceVariant = Color(0xFF4A4F46)
-val WarmOutline = Color(0xFF8E948A)
-val WarmOutlineVariant = Color(0xFFD6D8CD)
+val SuccessContainer = Color(0xFFE8F5E9)
+val SuccessContent = Color(0xFF2F6A45)
+val InfoContainer = Color(0xFFE8EEF7)
+val InfoContent = Color(0xFF3B5673)
 
-val SoftRed = Color(0xFFA6403A)
-val SoftRedContainer = Color(0xFFF7DAD6)
-val OnSoftRedContainer = Color(0xFF3F0B08)
+val TextPrimary = Color(0xFF2E3A34)
+val TextSecondary = Color(0xFF6B7780)
+val OutlineSoft = Color(0xFFE3DDD2)
+val OutlineStrong = Color(0xFFBDB6AA)
 
-// Dark palette.
-val SagePrimaryDark = Color(0xFFA9C9A9)
-val SageOnPrimaryDark = Color(0xFF14301A)
-val SagePrimaryContainerDark = Color(0xFF354E3A)
-val SageOnPrimaryContainerDark = Color(0xFFC7E5C3)
+val MutedError = Color(0xFF8A4B45)
+val MutedErrorContainer = Color(0xFFF6E8E5)
 
-val ApricotSecondaryDark = Color(0xFFEFCBA6)
-val ApricotOnSecondaryDark = Color(0xFF3A2613)
-val ApricotContainerDark = Color(0xFF4F3620)
-val ApricotOnContainerDark = Color(0xFFF8DFC5)
+// Dark palette — configured independently, not an inversion of the light scheme.
+val DarkBackground = Color(0xFF111512)
+val DarkSurface = Color(0xFF1A1F1B)
+val DarkSurfaceVariant = Color(0xFF242B25)
+val DarkSurfaceMuted = Color(0xFF202620)
 
-val WarmBackgroundDark = Color(0xFF12140F)
-val WarmSurfaceDark = Color(0xFF191B15)
-val WarmSurfaceVariantDark = Color(0xFF3F4339)
-val InkOnBackgroundDark = Color(0xFFE5E4DA)
-val InkOnSurfaceVariantDark = Color(0xFFC4C7BB)
-val WarmOutlineDark = Color(0xFF8E9388)
-val WarmOutlineVariantDark = Color(0xFF3F4339)
+val DarkPrimary = Color(0xFF9FC9B4)
+val DarkPrimaryPressed = Color(0xFFB7D8C6)
+val DarkOnPrimary = Color(0xFF10231A)
+val DarkPrimaryContainer = Color(0xFF2B4638)
+val DarkOnPrimaryContainer = Color(0xFFD9EDE1)
 
-val SoftRedDark = Color(0xFFF2B8B3)
-val SoftRedContainerDark = Color(0xFF5C1F1B)
-val OnSoftRedContainerDark = Color(0xFFFFDAD5)
+val DarkSuccessContainer = Color(0xFF223A2B)
+val DarkSuccessContent = Color(0xFFB7DEC4)
+val DarkInfoContainer = Color(0xFF24313E)
+val DarkInfoContent = Color(0xFFC2D8EC)
+
+val DarkTextPrimary = Color(0xFFE7EAE4)
+val DarkTextSecondary = Color(0xFFAEB8B0)
+val DarkOutlineSoft = Color(0xFF38423A)
+val DarkOutlineStrong = Color(0xFF58645B)
+
+val DarkMutedError = Color(0xFFE7B4AE)
+val DarkMutedErrorContainer = Color(0xFF3B2623)

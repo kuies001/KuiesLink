@@ -15,6 +15,7 @@ import androidx.compose.ui.res.stringResource
 import tw.kuies.link.R
 import tw.kuies.link.settings.PreferredShareTarget
 import tw.kuies.link.settings.ShareMode
+import tw.kuies.link.settings.ThemeMode
 
 val LinkNotice.messageRes: Int
     @StringRes get() = when (this) {
@@ -44,17 +45,25 @@ fun LinkApp(
     onRetryShorten: () -> Unit,
     onCopyShortUrl: (String) -> Unit,
     onShareShortUrl: (String) -> Unit,
-    onRestoreOriginal: () -> Unit,
+    onBackToHome: () -> Unit,
     onOpenSettings: () -> Unit,
     onCloseSettings: () -> Unit,
     onShareModeChange: (ShareMode) -> Unit,
     onPreferredShareTargetChange: (PreferredShareTarget) -> Unit,
+    onThemeModeChange: (ThemeMode) -> Unit,
+    onExpandDetailsChange: (Boolean) -> Unit,
+    onShowTechnicalInfoChange: (Boolean) -> Unit,
     onNoticeShown: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val notice = state.notice
-    val noticeMessage = if (notice != null) stringResource(notice.messageRes) else null
+    // NoUrlFound is shown inline under the input; a snackbar would be a second, louder warning.
+    val noticeMessage = if (notice != null && notice != LinkNotice.NoUrlFound) {
+        stringResource(notice.messageRes)
+    } else {
+        null
+    }
 
     LaunchedEffect(notice) {
         if (noticeMessage != null) {
@@ -64,23 +73,39 @@ fun LinkApp(
     }
 
     BackHandler(enabled = state.showSettings) { onCloseSettings() }
+    BackHandler(enabled = !state.showSettings && state.result != null) { onBackToHome() }
 
     Scaffold(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-        if (state.showSettings) {
-            SettingsScreen(
-                shareMode = state.shareMode,
-                preferredShareTarget = state.preferredShareTarget,
+        when {
+            state.showSettings -> SettingsScreen(
+                state = state,
                 contentPadding = innerPadding,
                 onBack = onCloseSettings,
                 onShareModeChange = onShareModeChange,
                 onPreferredShareTargetChange = onPreferredShareTargetChange,
+                onThemeModeChange = onThemeModeChange,
+                onExpandDetailsChange = onExpandDetailsChange,
+                onShowTechnicalInfoChange = onShowTechnicalInfoChange,
             )
-        } else {
-            HomeScreen(
+
+            state.result != null -> ResultScreen(
+                state = state,
+                contentPadding = innerPadding,
+                onBack = onBackToHome,
+                onCopyUrl = onCopyUrl,
+                onShareUrl = onShareUrl,
+                onShorten = onShorten,
+                onRetryShorten = onRetryShorten,
+                onRetryClean = onClean,
+                onCopyShortUrl = onCopyShortUrl,
+                onShareShortUrl = onShareShortUrl,
+            )
+
+            else -> HomeScreen(
                 state = state,
                 contentPadding = innerPadding,
                 onInputChange = onInputChange,
@@ -88,13 +113,6 @@ fun LinkApp(
                 onClean = onClean,
                 onClearInput = onClearInput,
                 onSelectCandidate = onSelectCandidate,
-                onCopyUrl = onCopyUrl,
-                onShareUrl = onShareUrl,
-                onShorten = onShorten,
-                onRetryShorten = onRetryShorten,
-                onCopyShortUrl = onCopyShortUrl,
-                onShareShortUrl = onShareShortUrl,
-                onRestoreOriginal = onRestoreOriginal,
                 onOpenSettings = onOpenSettings,
             )
         }

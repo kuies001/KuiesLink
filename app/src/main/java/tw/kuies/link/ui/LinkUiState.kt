@@ -6,6 +6,7 @@ import tw.kuies.link.domain.CleaningResult
 import tw.kuies.link.domain.CleaningStatus
 import tw.kuies.link.settings.PreferredShareTarget
 import tw.kuies.link.settings.ShareMode
+import tw.kuies.link.settings.ThemeMode
 
 data class LinkUiState(
     val input: String = "",
@@ -13,6 +14,9 @@ data class LinkUiState(
     val candidates: List<String> = emptyList(),
     val shareMode: ShareMode = ShareMode.DEFAULT,
     val preferredShareTarget: PreferredShareTarget = PreferredShareTarget.DEFAULT,
+    val themeMode: ThemeMode = ThemeMode.DEFAULT,
+    val expandDetailsByDefault: Boolean = false,
+    val showTechnicalInfo: Boolean = false,
     val settingsLoaded: Boolean = false,
     val showSettings: Boolean = false,
     val isCleaning: Boolean = false,

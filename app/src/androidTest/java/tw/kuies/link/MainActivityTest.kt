@@ -24,71 +24,63 @@ class MainActivityTest {
 
     @Test
     fun manualUrlIsCleanedAndShown() {
-        composeRule.onNode(hasSetTextAction()).performClick()
-            .performTextInput("https://example.com/p?utm_source=news&id=7")
+        input("https://example.com/p?utm_source=news&id=7")
+        clean()
 
-        composeRule.onNodeWithText("清理網址").performScrollTo().performClick()
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithText("已移除 1 個追蹤參數").assertIsDisplayed()
+        composeRule.onNodeWithText("已移除 1 個追蹤參數").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("https://example.com/p?id=7").assertIsDisplayed()
     }
 
     @Test
     fun cleanUrlIsReportedAsClean() {
-        composeRule.onNode(hasSetTextAction()).performClick()
-            .performTextInput("https://example.com/p?id=7")
+        input("https://example.com/p?id=7")
+        clean()
 
-        composeRule.onNodeWithText("清理網址").performScrollTo().performClick()
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithText("網址已經很乾淨").assertIsDisplayed()
+        composeRule.onNodeWithText("未發現已知追蹤參數").assertIsDisplayed()
     }
 
     @Test
     fun instagramReelExlnIsRemovedEndToEnd() {
-        composeRule.onNode(hasSetTextAction()).performClick()
-            .performTextInput("https://www.instagram.com/reel/DcClyQgikR4/?exln=Yjg5MXAyMzZid2l0")
+        input("https://www.instagram.com/reel/DcClyQgikR4/?exln=Yjg5MXAyMzZid2l0")
+        clean()
 
-        composeRule.onNodeWithText("清理網址").performScrollTo().performClick()
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithText("已移除 1 個追蹤參數").assertIsDisplayed()
+        composeRule.onNodeWithText("已移除 1 個追蹤參數").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("https://www.instagram.com/reel/DcClyQgikR4/").assertIsDisplayed()
     }
 
     @Test
     fun instagramReelQueryIsFullyRemovedEndToEnd() {
-        composeRule.onNode(hasSetTextAction()).performClick()
-            .performTextInput("https://www.instagram.com/reel/DeuAqoizRW9/?vrfl=djBqNnQzZ2J6Y2Fu")
+        input("https://www.instagram.com/reel/DeuAqoizRW9/?vrfl=djBqNnQzZ2J6Y2Fu")
+        clean()
 
-        composeRule.onNodeWithText("清理網址").performScrollTo().performClick()
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithText("已移除 1 個追蹤參數").assertIsDisplayed()
+        composeRule.onNodeWithText("已移除 1 個追蹤參數").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("https://www.instagram.com/reel/DeuAqoizRW9/").assertIsDisplayed()
     }
 
     @Test
     fun instagramPostCplkIsRemovedEndToEnd() {
-        composeRule.onNode(hasSetTextAction()).performClick()
-            .performTextInput("https://www.instagram.com/p/DeoNZZmCde8/?cplk=Zmg3OGxybHA2aHow")
+        input("https://www.instagram.com/p/DeoNZZmCde8/?cplk=Zmg3OGxybHA2aHow")
+        clean()
 
-        composeRule.onNodeWithText("清理網址").performScrollTo().performClick()
-        composeRule.waitForIdle()
-
-        composeRule.onNodeWithText("已移除 1 個追蹤參數").assertIsDisplayed()
+        composeRule.onNodeWithText("已移除 1 個追蹤參數").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("https://www.instagram.com/p/DeoNZZmCde8/").assertIsDisplayed()
     }
 
     @Test
     fun multipleUrlsAreListedInsteadOfGuessed() {
-        composeRule.onNode(hasSetTextAction()).performClick()
-            .performTextInput("https://a.example/1 https://b.example/2")
-
-        composeRule.onNodeWithText("清理網址").performScrollTo().performClick()
+        input("https://a.example/1 https://b.example/2")
+        composeRule.onNodeWithText("清理並縮短網址").performScrollTo().performClick()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("找到 2 個網址").assertIsDisplayed()
+        composeRule.onNodeWithText("找到 2 個網址").performScrollTo().assertIsDisplayed()
+    }
+
+    private fun input(text: String) {
+        composeRule.onNode(hasSetTextAction()).performClick().performTextInput(text)
+    }
+
+    private fun clean() {
+        composeRule.onNodeWithText("清理並縮短網址").performScrollTo().performClick()
+        composeRule.waitForIdle()
     }
 }

@@ -27,6 +27,7 @@ import tw.kuies.link.domain.UrlExtractor
 import tw.kuies.link.settings.PreferredShareTarget
 import tw.kuies.link.settings.SettingsRepository
 import tw.kuies.link.settings.ShareMode
+import tw.kuies.link.settings.ThemeMode
 
 class LinkViewModel(
     private val settingsRepository: SettingsRepository,
@@ -58,19 +59,35 @@ class LinkViewModel(
 
     private data class PendingShare(val requestId: Long, val url: String)
 
+    private data class SettingsSnapshot(
+        val shareMode: ShareMode = ShareMode.DEFAULT,
+        val preferredShareTarget: PreferredShareTarget = PreferredShareTarget.DEFAULT,
+        val themeMode: ThemeMode = ThemeMode.DEFAULT,
+        val expandDetails: Boolean = false,
+        val showTechnicalInfo: Boolean = false,
+    )
+
     init {
         viewModelScope.launch {
             combine(
                 settingsRepository.shareMode,
                 settingsRepository.preferredShareTarget,
-            ) { mode, target -> mode to target }
-                .catch { emit(ShareMode.DEFAULT to PreferredShareTarget.DEFAULT) }
-                .collect { (mode, target) ->
+                settingsRepository.themeMode,
+                settingsRepository.expandDetails,
+                settingsRepository.showTechnicalInfo,
+            ) { mode, target, theme, expand, technical ->
+                SettingsSnapshot(mode, target, theme, expand, technical)
+            }
+                .catch { emit(SettingsSnapshot()) }
+                .collect { snapshot ->
                     val firstEmission = !_uiState.value.settingsLoaded
                     _uiState.update {
                         it.copy(
-                            shareMode = mode,
-                            preferredShareTarget = target,
+                            shareMode = snapshot.shareMode,
+                            preferredShareTarget = snapshot.preferredShareTarget,
+                            themeMode = snapshot.themeMode,
+                            expandDetailsByDefault = snapshot.expandDetails,
+                            showTechnicalInfo = snapshot.showTechnicalInfo,
                             settingsLoaded = true,
                         )
                     }
@@ -386,6 +403,38 @@ class LinkViewModel(
         if (_uiState.value.preferredShareTarget == target) return
         _uiState.update { it.copy(preferredShareTarget = target) }
         viewModelScope.launch { settingsRepository.setPreferredShareTarget(target) }
+    }
+
+    fun onThemeModeChange(mode: ThemeMode) {
+        if (_uiState.value.themeMode == mode) return
+        _uiState.update { it.copy(themeMode = mode) }
+        viewModelScope.launch { settingsRepository.setThemeMode(mode) }
+    }
+
+    fun onExpandDetailsChange(enabled: Boolean) {
+        if (_uiState.value.expandDetailsByDefault == enabled) return
+        _uiState.update { it.copy(expandDetailsByDefault = enabled) }
+        viewModelScope.launch { settingsRepository.setExpandDetails(enabled) }
+    }
+
+    fun onShowTechnicalInfoChange(enabled: Boolean) {
+        if (_uiState.value.showTechnicalInfo == enabled) return
+        _uiState.update { it.copy(showTechnicalInfo = enabled) }
+        viewModelScope.launch { settingsRepository.setShowTechnicalInfo(enabled) }
+    }
+
+    fun onBackToHome() {
+        cleaningJob?.cancel()
+        invalidateShortening()
+        latestRequestId++
+        _uiState.update {
+            it.copy(
+                result = null,
+                candidates = emptyList(),
+                isCleaning = false,
+                notice = null,
+            )
+        }
     }
 
     fun onOpenSettings() {
