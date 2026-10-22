@@ -60,9 +60,10 @@ android {
                 "UPDATE_ASSET_BASE",
                 "\"https://github.com/kuies001/KuiesLink/releases/download/\"",
             )
+            // R8 full-mode optimisation broke OkHttp/Kotlin (IllegalAccessError at launch).
+            // Keep the release unminified for v0.3.3; revisit with keep rules later.
             optimization {
-                enable = true
-                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
+                enable = false
             }
         }
     }
