@@ -53,6 +53,11 @@ fun LinkApp(
     onThemeModeChange: (ThemeMode) -> Unit,
     onExpandDetailsChange: (Boolean) -> Unit,
     onShowTechnicalInfoChange: (Boolean) -> Unit,
+    onCheckUpdate: () -> Unit,
+    onDownloadUpdate: () -> Unit,
+    onInstallUpdate: () -> Unit,
+    onOpenInstallPermission: () -> Unit,
+    onCancelUpdateDownload: () -> Unit,
     onNoticeShown: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -90,6 +95,11 @@ fun LinkApp(
                 onThemeModeChange = onThemeModeChange,
                 onExpandDetailsChange = onExpandDetailsChange,
                 onShowTechnicalInfoChange = onShowTechnicalInfoChange,
+                onCheckUpdate = onCheckUpdate,
+                onDownloadUpdate = onDownloadUpdate,
+                onInstallUpdate = onInstallUpdate,
+                onOpenInstallPermission = onOpenInstallPermission,
+                onCancelUpdateDownload = onCancelUpdateDownload,
             )
 
             state.result != null -> ResultScreen(

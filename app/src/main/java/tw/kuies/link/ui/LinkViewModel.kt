@@ -2,6 +2,7 @@ package tw.kuies.link.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import java.io.File
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -28,6 +29,10 @@ import tw.kuies.link.settings.PreferredShareTarget
 import tw.kuies.link.settings.SettingsRepository
 import tw.kuies.link.settings.ShareMode
 import tw.kuies.link.settings.ThemeMode
+import tw.kuies.link.update.PrepareResult
+import tw.kuies.link.update.UpdateCheck
+import tw.kuies.link.update.UpdateCoordinator
+import tw.kuies.link.update.UpdateFailure
 
 class LinkViewModel(
     private val settingsRepository: SettingsRepository,
@@ -40,6 +45,7 @@ class LinkViewModel(
     private val shortenRequest: suspend (String) -> ShortenResult = {
         ShortenResult.Failure(ShortenError.CANCELLED)
     },
+    private val updater: UpdateCoordinator? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LinkUiState())
@@ -56,6 +62,7 @@ class LinkViewModel(
     private var shortenJob: Job? = null
     private var shortenRequestId = 0L
     private var lastShortenedUrl: String? = null
+    private var updateJob: Job? = null
 
     private data class PendingShare(val requestId: Long, val url: String)
 
@@ -421,6 +428,152 @@ class LinkViewModel(
         if (_uiState.value.showTechnicalInfo == enabled) return
         _uiState.update { it.copy(showTechnicalInfo = enabled) }
         viewModelScope.launch { settingsRepository.setShowTechnicalInfo(enabled) }
+    }
+
+    fun onCheckUpdate() {
+        val coordinator = updater
+        if (coordinator == null) {
+            _uiState.update {
+                it.copy(update = UpdateUiState(phase = UpdatePhase.Failed, failure = UpdateFailure.UNKNOWN))
+            }
+            return
+        }
+        val current = _uiState.value.update.phase
+        if (current == UpdatePhase.Checking || current == UpdatePhase.Downloading) return
+        updateJob?.cancel()
+        _uiState.value.update.apkPath?.let { coordinator.discard(File(it)) }
+        _uiState.update { it.copy(update = UpdateUiState(phase = UpdatePhase.Checking)) }
+        updateJob = viewModelScope.launch {
+            val result = coordinator.checkForUpdate()
+            _uiState.update { state ->
+                state.copy(
+                    update = when (result) {
+                        is UpdateCheck.UpToDate -> UpdateUiState(phase = UpdatePhase.UpToDate)
+                        is UpdateCheck.Available -> UpdateUiState(
+                            phase = UpdatePhase.Available,
+                            available = result.update,
+                        )
+
+                        is UpdateCheck.Failed -> UpdateUiState(
+                            phase = UpdatePhase.Failed,
+                            failure = result.failure,
+                        )
+                    },
+                )
+            }
+        }
+    }
+
+    fun onDownloadUpdate() {
+        val coordinator = updater ?: return
+        val update = _uiState.value.update.available ?: return
+        if (_uiState.value.update.phase == UpdatePhase.Downloading) return
+        updateJob?.cancel()
+        _uiState.value.update.apkPath?.let { coordinator.discard(File(it)) }
+        _uiState.update {
+            it.copy(
+                update = it.update.copy(
+                    phase = UpdatePhase.Downloading,
+                    progress = 0,
+                    failure = null,
+                    apkPath = null,
+                ),
+            )
+        }
+        updateJob = viewModelScope.launch {
+            val result = coordinator.downloadAndVerify(update) { percent ->
+                _uiState.update { state ->
+                    state.copy(update = state.update.copy(progress = percent))
+                }
+            }
+            when (result) {
+                is PrepareResult.Prepared -> {
+                    _uiState.update {
+                        it.copy(
+                            update = it.update.copy(
+                                phase = UpdatePhase.ReadyToInstall,
+                                progress = 100,
+                                apkPath = result.apk.absolutePath,
+                            ),
+                        )
+                    }
+                    if (!coordinator.canInstallPackages()) {
+                        _uiState.update {
+                            it.copy(update = it.update.copy(phase = UpdatePhase.NeedsPermission))
+                        }
+                    } else {
+                        launchInstaller(coordinator, result.apk)
+                    }
+                }
+
+                is PrepareResult.Failed -> _uiState.update {
+                    it.copy(
+                        update = it.update.copy(
+                            phase = UpdatePhase.Failed,
+                            failure = result.failure,
+                            progress = null,
+                        ),
+                    )
+                }
+            }
+        }
+    }
+
+    fun onInstallUpdate() {
+        val coordinator = updater ?: return
+        val apk = _uiState.value.update.apkPath?.let(::File)
+        if (apk == null || !apk.isFile) {
+            _uiState.update {
+                it.copy(
+                    update = it.update.copy(
+                        phase = UpdatePhase.Failed,
+                        failure = UpdateFailure.DOWNLOAD_FAILED,
+                    ),
+                )
+            }
+            return
+        }
+        if (!coordinator.canInstallPackages()) {
+            _uiState.update { it.copy(update = it.update.copy(phase = UpdatePhase.NeedsPermission)) }
+            return
+        }
+        launchInstaller(coordinator, apk)
+    }
+
+    fun onOpenInstallPermission() {
+        val coordinator = updater ?: return
+        if (!coordinator.openInstallPermissionSettings()) {
+            _uiState.update {
+                it.copy(
+                    update = it.update.copy(
+                        phase = UpdatePhase.Failed,
+                        failure = UpdateFailure.INSTALL_UNAVAILABLE,
+                    ),
+                )
+            }
+        }
+    }
+
+    fun onCancelUpdateDownload() {
+        updateJob?.cancel()
+        updateJob = null
+        updater?.let { coordinator ->
+            _uiState.value.update.apkPath?.let { coordinator.discard(File(it)) }
+        }
+        _uiState.update { it.copy(update = UpdateUiState()) }
+    }
+
+    private fun launchInstaller(coordinator: UpdateCoordinator, apk: File) {
+        if (!coordinator.launchInstaller(apk)) {
+            _uiState.update {
+                it.copy(
+                    update = it.update.copy(
+                        phase = UpdatePhase.Failed,
+                        failure = UpdateFailure.INSTALL_UNAVAILABLE,
+                    ),
+                )
+            }
+        }
     }
 
     fun onBackToHome() {

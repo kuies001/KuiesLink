@@ -45,6 +45,7 @@ import tw.kuies.link.ui.components.KuiesTopBar
 import tw.kuies.link.ui.components.SettingsRow
 import tw.kuies.link.ui.components.SettingsRowDivider
 import tw.kuies.link.ui.components.SettingsSection
+import tw.kuies.link.ui.components.UpdateDialog
 import tw.kuies.link.ui.theme.Spacing
 
 private enum class SettingsDialog {
@@ -66,11 +67,17 @@ fun SettingsScreen(
     onThemeModeChange: (ThemeMode) -> Unit,
     onExpandDetailsChange: (Boolean) -> Unit,
     onShowTechnicalInfoChange: (Boolean) -> Unit,
+    onCheckUpdate: () -> Unit,
+    onDownloadUpdate: () -> Unit,
+    onInstallUpdate: () -> Unit,
+    onOpenInstallPermission: () -> Unit,
+    onCancelUpdateDownload: () -> Unit,
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val versionLabel = remember(context) { context.versionLabel() }
     var dialog by remember { mutableStateOf<SettingsDialog?>(null) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -143,6 +150,21 @@ fun SettingsScreen(
                 )
                 SettingsRowDivider()
                 SettingsRow(
+                    icon = KuiesIconKind.Refresh,
+                    title = "檢查更新",
+                    value = updateRowValue(state.update),
+                    onClick = {
+                        showUpdateDialog = true
+                        val phase = state.update.phase
+                        if (phase == UpdatePhase.Idle || phase == UpdatePhase.UpToDate ||
+                            phase == UpdatePhase.Failed
+                        ) {
+                            onCheckUpdate()
+                        }
+                    },
+                )
+                SettingsRowDivider()
+                SettingsRow(
                     icon = KuiesIconKind.Shield,
                     title = "隱私說明",
                     subtitle = "了解我們如何處理你的資料",
@@ -205,7 +227,8 @@ fun SettingsScreen(
             title = "隱私說明",
             body = "一般清理都在這支手機上完成。只有在你按下「建立短網址」，" +
                 "或快速模式預設分享短網址時，原始網址才會送到 u.kuies.tw 建立短網址；" +
-                "伺服器不會保存你貼上的其他內容。App 只在裝置上保存你的偏好設定。",
+                "短網址服務會保存導向資料以提供轉址。App 只在裝置上保存你的偏好設定；" +
+                "檢查更新時會向 GitHub Releases 取得版本資訊，下載的 APK 只暫存在 App 快取。",
             onDismiss = { dialog = null },
         )
 
@@ -219,6 +242,32 @@ fun SettingsScreen(
 
         null -> Unit
     }
+
+    if (showUpdateDialog) {
+        UpdateDialog(
+            state = state.update,
+            currentVersion = versionLabel,
+            onDismiss = { showUpdateDialog = false },
+            onDownload = onDownloadUpdate,
+            onInstall = onInstallUpdate,
+            onOpenInstallSettings = onOpenInstallPermission,
+            onCancelDownload = {
+                onCancelUpdateDownload()
+                showUpdateDialog = false
+            },
+        )
+    }
+}
+
+private fun updateRowValue(update: UpdateUiState): String? = when (update.phase) {
+    UpdatePhase.Idle -> null
+    UpdatePhase.Checking -> "檢查中…"
+    UpdatePhase.UpToDate -> "已是最新"
+    UpdatePhase.Available -> "有新版本"
+    UpdatePhase.Downloading -> update.progress?.let { "下載 $it%" } ?: "下載中"
+    UpdatePhase.ReadyToInstall -> "待安裝"
+    UpdatePhase.NeedsPermission -> "待授權"
+    UpdatePhase.Failed -> "檢查失敗"
 }
 
 private data class Choice<T>(
@@ -305,4 +354,4 @@ private fun Context.versionLabel(): String = runCatching {
     "v${info.versionName} (${info.longVersionCode})"
 }.getOrDefault("—")
 
-private const val GITHUB_URL = "https://github.com/kuies001/kuies-short-url"
+private const val GITHUB_URL = "https://github.com/kuies001/KuiesLink"

@@ -93,6 +93,12 @@ class MainActivityTest {
         composeRule.onNodeWithText("原網址").assertIsDisplayed()
     }
 
+    @Test
+    fun settingsOffersInAppUpdateCheck() {
+        composeRule.onNodeWithContentDescription("設定").performClick()
+        composeRule.onNodeWithText("檢查更新").performScrollTo().assertIsDisplayed()
+    }
+
     private fun input(text: String) {
         composeRule.onNode(hasSetTextAction()).performClick().performTextInput(text)
     }

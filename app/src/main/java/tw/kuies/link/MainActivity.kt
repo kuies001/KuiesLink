@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
@@ -19,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import java.io.File
 import tw.kuies.link.data.OkHttpShortUrlRepository
 import tw.kuies.link.data.ShortUrlApiClient
 import tw.kuies.link.domain.CleaningStatus
@@ -31,6 +33,15 @@ import tw.kuies.link.ui.LinkViewModel
 import tw.kuies.link.ui.QuickShareNotice
 import tw.kuies.link.ui.ShareRequest
 import tw.kuies.link.ui.theme.KuiesLinkTheme
+import tw.kuies.link.update.AndroidApkMetadataSource
+import tw.kuies.link.update.AndroidUpdateInstaller
+import tw.kuies.link.update.ApkDownloader
+import tw.kuies.link.update.ApkVerifier
+import tw.kuies.link.update.DefaultUpdateCoordinator
+import tw.kuies.link.update.UpdateApi
+import tw.kuies.link.update.UpdateChecker
+import tw.kuies.link.update.UpdateConfig
+import tw.kuies.link.update.UpdateManager
 
 class MainActivity : ComponentActivity() {
 
@@ -50,6 +61,7 @@ class MainActivity : ComponentActivity() {
                         applicationContext.linkSettingsDataStore,
                     ),
                     shortenRequest = repository::shorten,
+                    updater = buildUpdateCoordinator(),
                 )
             }
         }
@@ -109,6 +121,11 @@ class MainActivity : ComponentActivity() {
                     onThemeModeChange = viewModel::onThemeModeChange,
                     onExpandDetailsChange = viewModel::onExpandDetailsChange,
                     onShowTechnicalInfoChange = viewModel::onShowTechnicalInfoChange,
+                    onCheckUpdate = viewModel::onCheckUpdate,
+                    onDownloadUpdate = viewModel::onDownloadUpdate,
+                    onInstallUpdate = viewModel::onInstallUpdate,
+                    onOpenInstallPermission = viewModel::onOpenInstallPermission,
+                    onCancelUpdateDownload = viewModel::onCancelUpdateDownload,
                     onNoticeShown = viewModel::onNoticeShown,
                 )
             }
@@ -131,6 +148,39 @@ class MainActivity : ComponentActivity() {
 
     private fun isDebuggable(): Boolean =
         (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+
+    private fun buildUpdateCoordinator(): DefaultUpdateCoordinator {
+        val trust = UpdateConfig.trust(
+            debuggable = isDebuggable(),
+            apiBase = BuildConfig.UPDATE_API_BASE,
+            assetBase = BuildConfig.UPDATE_ASSET_BASE,
+        )
+        val versionCode = installedVersionCode()
+        val manager = UpdateManager(
+            trust = trust,
+            api = UpdateApi(trust),
+            checker = UpdateChecker(trust, packageName, versionCode, Build.VERSION.SDK_INT),
+            downloader = ApkDownloader(
+                client = UpdateApi.downloadClient(),
+                trust = trust,
+                directory = File(cacheDir, "updates"),
+            ),
+            verifier = ApkVerifier(AndroidApkMetadataSource(applicationContext)),
+            packageName = packageName,
+            currentVersionCode = versionCode,
+        )
+        return DefaultUpdateCoordinator(manager, AndroidUpdateInstaller(applicationContext))
+    }
+
+    private fun installedVersionCode(): Long {
+        val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
+        } else {
+            @Suppress("DEPRECATION")
+            packageManager.getPackageInfo(packageName, 0)
+        }
+        return info.longVersionCode
+    }
 
     private fun readClipboardText(): String? {
         val clipboard = getSystemService(ClipboardManager::class.java) ?: return null

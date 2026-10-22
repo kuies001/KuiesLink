@@ -24,6 +24,7 @@ data class LinkUiState(
     val shortResult: ShortenResponse? = null,
     val shortenError: ShortenError? = null,
     val notice: LinkNotice? = null,
+    val update: UpdateUiState = UpdateUiState(),
 )
 
 enum class LinkNotice {
