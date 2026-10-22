@@ -160,6 +160,27 @@ class UpdateViewModelTest {
     }
 
     @Test
+    fun grantingInstallPermissionWhileAwayAllowsInstall() = runTest(dispatcher) {
+        val apk = preparedApk()
+        val updater = FakeUpdater(
+            checkResult = UpdateCheck.Available(update()),
+            prepareResult = PrepareResult.Prepared(apk),
+            canInstall = false,
+        )
+        val viewModel = viewModel(updater)
+        viewModel.onCheckUpdate()
+        advanceUntilIdle()
+        viewModel.onDownloadUpdate()
+        advanceUntilIdle()
+        assertEquals(UpdatePhase.NeedsPermission, viewModel.uiState.value.update.phase)
+
+        updater.canInstall = true
+        viewModel.onResume()
+
+        assertEquals(UpdatePhase.ReadyToInstall, viewModel.uiState.value.update.phase)
+    }
+
+    @Test
     fun cancellingDiscardsThePreparedFile() = runTest(dispatcher) {
         val apk = preparedApk()
         val updater = FakeUpdater(

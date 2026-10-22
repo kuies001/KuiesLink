@@ -554,6 +554,17 @@ class LinkViewModel(
         }
     }
 
+    /** Returning from the system permission screen must not leave the dialog stuck on "前往設定". */
+    fun onResume() {
+        val coordinator = updater ?: return
+        if (_uiState.value.update.phase != UpdatePhase.NeedsPermission) return
+        if (coordinator.canInstallPackages()) {
+            _uiState.update {
+                it.copy(update = it.update.copy(phase = UpdatePhase.ReadyToInstall))
+            }
+        }
+    }
+
     fun onCancelUpdateDownload() {
         updateJob?.cancel()
         updateJob = null

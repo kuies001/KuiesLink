@@ -34,7 +34,7 @@ class AndroidUpdateInstaller(private val context: Context) : UpdateInstaller {
             "${context.packageName}.fileprovider",
             apk,
         )
-        val intent = Intent(Intent.ACTION_VIEW)
+        val intent = Intent(Intent.ACTION_INSTALL_PACKAGE)
             .setDataAndType(uri, APK_MIME_TYPE)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
