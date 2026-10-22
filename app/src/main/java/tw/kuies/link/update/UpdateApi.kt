@@ -105,7 +105,8 @@ class UpdateApi(
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(20, TimeUnit.SECONDS)
             .callTimeout(25, TimeUnit.SECONDS)
-            .retryOnConnectionFailure(false)
+            // The check is a read-only GET; retrying a stale pooled connection is safe.
+            .retryOnConnectionFailure(true)
             .followRedirects(false)
             .followSslRedirects(false)
             .build()
