@@ -91,19 +91,17 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = KuiesIconKind.Share,
                     title = "分享模式",
-                    subtitle = "選擇處理後的分享流程",
                     value = if (state.shareMode == ShareMode.QUICK) "快速模式" else "確認模式",
                     onClick = { dialog = SettingsDialog.ShareMode },
                 )
                 SettingsRowDivider()
                 SettingsRow(
                     icon = KuiesIconKind.Link,
-                    title = "預設分享目標",
-                    subtitle = "選擇要分享的內容",
+                    title = "分享內容",
                     value = if (state.preferredShareTarget == PreferredShareTarget.CLEAN_URL) {
-                        "乾淨原網址"
+                        "原網址"
                     } else {
-                        "Kuies 短網址"
+                        "短網址"
                     },
                     onClick = { dialog = SettingsDialog.Target },
                 )
@@ -181,10 +179,10 @@ fun SettingsScreen(
         )
 
         SettingsDialog.Target -> ChoiceDialog(
-            title = "預設分享目標",
+            title = "分享內容",
             options = listOf(
-                Choice(PreferredShareTarget.KUIES_SHORT_URL, "Kuies 短網址", "建立 u.kuies.tw 短網址"),
-                Choice(PreferredShareTarget.CLEAN_URL, "乾淨原網址", "只分享清理後的原網址"),
+                Choice(PreferredShareTarget.KUIES_SHORT_URL, "短網址（推薦）", "建立 KuiesLink 短網址"),
+                Choice(PreferredShareTarget.CLEAN_URL, "原網址", "只分享清理後的原始網址"),
             ),
             selected = state.preferredShareTarget,
             onSelect = onPreferredShareTargetChange,

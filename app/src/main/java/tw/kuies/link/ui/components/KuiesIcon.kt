@@ -2,6 +2,7 @@ package tw.kuies.link.ui.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -14,14 +15,17 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import tw.kuies.link.R
 
 /**
- * One line-icon family drawn with Compose Canvas: consistent stroke weight, round caps and no
- * third-party icon dependency. Every icon is decorative unless a content description is supplied.
+ * One icon family: most marks are drawn with Compose Canvas at a consistent stroke weight, while
+ * the settings gear uses the Material outline path so it reads as a gear at any size. Every icon is
+ * decorative unless a content description is supplied.
  */
 enum class KuiesIconKind {
     Link,
@@ -48,6 +52,16 @@ fun KuiesIcon(
     size: Dp = 24.dp,
     contentDescription: String? = null,
 ) {
+    if (kind == KuiesIconKind.Settings) {
+        Icon(
+            painter = painterResource(R.drawable.ic_settings_gear),
+            contentDescription = contentDescription,
+            modifier = modifier.size(size),
+            tint = tint,
+        )
+        return
+    }
+
     Canvas(
         modifier = modifier
             .size(size)
@@ -147,20 +161,7 @@ fun KuiesIcon(
                 drawCircle(tint, radius = w * 0.10f, center = c, style = stroke)
             }
 
-            KuiesIconKind.Settings -> {
-                repeat(8) { index ->
-                    rotate(index * 45f) {
-                        drawRoundRect(
-                            color = tint,
-                            topLeft = Offset(w * 0.43f, h * 0.02f),
-                            size = Size(w * 0.14f, h * 0.22f),
-                            cornerRadius = CornerRadius(w * 0.04f),
-                        )
-                    }
-                }
-                drawCircle(tint, radius = w * 0.26f, style = Stroke(width = w * 0.075f))
-                drawCircle(tint, radius = w * 0.10f, style = Stroke(width = w * 0.075f))
-            }
+            KuiesIconKind.Settings -> Unit
 
             KuiesIconKind.Refresh -> {
                 drawArc(

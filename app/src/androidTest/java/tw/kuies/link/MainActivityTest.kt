@@ -7,6 +7,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -79,6 +80,17 @@ class MainActivityTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("找到 2 個網址").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun settingsShareContentUsesCompactCopy() {
+        composeRule.onNodeWithContentDescription("設定").performClick()
+        composeRule.onNode(hasText("分享內容") and hasClickAction()).assertIsDisplayed()
+        composeRule.onNodeWithText("短網址").assertIsDisplayed()
+
+        composeRule.onNode(hasText("分享內容") and hasClickAction()).performClick()
+        composeRule.onNodeWithText("短網址（推薦）").assertIsDisplayed()
+        composeRule.onNodeWithText("原網址").assertIsDisplayed()
     }
 
     private fun input(text: String) {
