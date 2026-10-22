@@ -19,6 +19,14 @@ class UpdateApi(
     private val trust: UpdateTrust,
     private val client: OkHttpClient = apiClient(),
 ) {
+    // GitHub serves release assets via a 302 to release-assets.githubusercontent.com.
+    private val manifestClient: OkHttpClient by lazy {
+        client.newBuilder()
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .build()
+    }
+
     suspend fun fetchLatestRelease(): ApiResult<GitHubRelease> =
         when (val response = getText(trust.latestReleaseUrl, MAX_RELEASE_BYTES)) {
             is ApiResult.Failure -> response
@@ -33,10 +41,20 @@ class UpdateApi(
         if (!trust.isAllowedAssetUrl(url)) {
             return ApiResult.Failure(UpdateFailure.ASSET_MISMATCH)
         }
-        return getText(url, UpdateContract.MAX_MANIFEST_BYTES)
+        return getText(
+            url = url,
+            maxBytes = UpdateContract.MAX_MANIFEST_BYTES,
+            httpClient = manifestClient,
+            validateFinalUrl = true,
+        )
     }
 
-    private suspend fun getText(url: String, maxBytes: Long): ApiResult<String> =
+    private suspend fun getText(
+        url: String,
+        maxBytes: Long,
+        httpClient: OkHttpClient = client,
+        validateFinalUrl: Boolean = false,
+    ): ApiResult<String> =
         suspendCancellableCoroutine { continuation ->
             val request = try {
                 Request.Builder()
@@ -50,7 +68,7 @@ class UpdateApi(
                 return@suspendCancellableCoroutine
             }
 
-            val call = client.newCall(request)
+            val call = httpClient.newCall(request)
             continuation.invokeOnCancellation { call.cancel() }
             call.enqueue(object : Callback {
                 override fun onFailure(call: Call, error: IOException) {
@@ -62,6 +80,12 @@ class UpdateApi(
                 override fun onResponse(call: Call, response: Response) {
                     response.use { result ->
                         if (!continuation.isActive) return
+                        if (validateFinalUrl &&
+                            !trust.isAllowedRedirectUrl(result.request.url.toString())
+                        ) {
+                            continuation.resume(ApiResult.Failure(UpdateFailure.ASSET_MISMATCH))
+                            return
+                        }
                         if (!result.isSuccessful) {
                             continuation.resume(
                                 ApiResult.Failure(httpFailure(result.code, result.header("X-RateLimit-Remaining"))),

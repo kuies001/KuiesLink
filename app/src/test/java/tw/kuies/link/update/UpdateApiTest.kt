@@ -84,6 +84,21 @@ class UpdateApiTest {
     }
 
     @Test
+    fun manifestRedirectIsFollowed() = runTest {
+        server.redirect(
+            "/v0.3.4-test/update.json",
+            "http://127.0.0.1:${server.port}/v0.3.4-test/real.json",
+        )
+        server.text("/v0.3.4-test/real.json", """{"ok":true}""")
+
+        val result = UpdateApi(trust, client).fetchManifest(
+            "http://127.0.0.1:${server.port}/v0.3.4-test/update.json",
+        )
+
+        assertTrue(result is ApiResult.Success)
+    }
+
+    @Test
     fun manifestUrlOutsideTheRepositoryIsRejectedWithoutNetwork() = runTest {
         val result = UpdateApi(trust, client).fetchManifest("https://evil.example/update.json")
 
