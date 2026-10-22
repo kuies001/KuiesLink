@@ -1,5 +1,9 @@
 # KuiesLink
 
+## 下載
+
+**[下載最新版 APK](https://github.com/kuies001/KuiesLink/releases/latest)** ・ [v0.3.3 直接下載](https://github.com/kuies001/KuiesLink/releases/download/v0.3.3/KuiesLink-v0.3.3.apk) ・ [SHA-256 檢查碼](https://github.com/kuies001/KuiesLink/releases/download/v0.3.3/KuiesLink-v0.3.3.apk.sha256)
+
 KuiesLink 是一個 Android 網址清理與短網址工具：貼上或從其他 App 分享連結，先移除已知的追蹤參數，再選擇分享乾淨網址或建立 Kuies 短網址。
 
 App 以 Kotlin + Jetpack Compose + Material 3 撰寫，走工業簡約風，支援深色模式，不需要帳號。
