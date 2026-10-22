@@ -1,7 +1,24 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
 }
+
+// Keep the release key and its passwords out of version control. The file is gitignored; the
+// keystore itself lives under the user's AndroidKeys directory.
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.isFile) {
+        keystorePropertiesFile.reader(Charsets.UTF_8).use { load(it) }
+    }
+}
+
+// Only debug builds honour these overrides, for the local end-to-end update check.
+val debugUpdateApiBase =
+    providers.gradleProperty("kuiesUpdateApiBase").getOrElse("https://api.github.com")
+val debugUpdateAssetBase = providers.gradleProperty("kuiesUpdateAssetBase")
+    .getOrElse("https://github.com/kuies001/KuiesLink/releases/download/")
 
 android {
     namespace = "tw.kuies.link"
@@ -13,14 +30,36 @@ android {
         applicationId = "tw.kuies.link"
         minSdk = 28
         targetSdk = 37
-        versionCode = 9
-        versionName = "0.3.2"
+        versionCode = 10
+        versionName = "0.3.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (keystorePropertiesFile.isFile) {
+            create("release") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
+        debug {
+            buildConfigField("String", "UPDATE_API_BASE", "\"$debugUpdateApiBase\"")
+            buildConfigField("String", "UPDATE_ASSET_BASE", "\"$debugUpdateAssetBase\"")
+        }
         release {
+            signingConfigs.findByName("release")?.let { signingConfig = it }
+            buildConfigField("String", "UPDATE_API_BASE", "\"https://api.github.com\"")
+            buildConfigField(
+                "String",
+                "UPDATE_ASSET_BASE",
+                "\"https://github.com/kuies001/KuiesLink/releases/download/\"",
+            )
             optimization {
                 enable = true
                 packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
@@ -33,6 +72,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
