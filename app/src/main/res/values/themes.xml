@@ -4,4 +4,23 @@
     <style name="Theme.KuiesLink" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/link_background</item>
     </style>
+
+    <!--
+      External-share dialog. The window is fully transparent; Compose paints the dim scrim and
+      the centered card, so the source app stays visible behind it on any OEM.
+    -->
+    <style name="Theme.KuiesLink.ShareDialog" parent="@style/Theme.KuiesLink">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@style/Animation.KuiesLink.ShareDialog</item>
+    </style>
+
+    <style name="Animation.KuiesLink.ShareDialog" parent="@android:style/Animation.Dialog">
+        <item name="android:windowEnterAnimation">@android:anim/fade_in</item>
+        <item name="android:windowExitAnimation">@android:anim/fade_out</item>
+    </style>
 </resources>

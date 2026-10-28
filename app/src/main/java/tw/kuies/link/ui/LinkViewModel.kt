@@ -46,6 +46,7 @@ class LinkViewModel(
         ShortenResult.Failure(ShortenError.CANCELLED)
     },
     private val updater: UpdateCoordinator? = null,
+    private val shareEntry: ShareEntry = ShareEntry.HOME,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LinkUiState())
@@ -163,8 +164,27 @@ class LinkViewModel(
             val result = withContext(computeDispatcher) { cleaner.clean(url) }
             if (requestId != latestRequestId) return@launch
             _uiState.update { it.copy(result = result, isCleaning = false) }
-            if (fromShare) applyQuickMode(result)
+            if (fromShare) {
+                when (shareEntry) {
+                    ShareEntry.HOME -> applyQuickMode(result)
+                    ShareEntry.DIALOG -> prepareDialogResult(result)
+                }
+            }
         }
+    }
+
+    /**
+     * The dialog's primary action is the short URL, so it is created without an extra tap. The
+     * user still decides whether to copy or share it; nothing is handed to another app here.
+     */
+    private fun prepareDialogResult(result: CleaningResult) {
+        if (!result.isShareable) return
+        startShortening(result.originalUrl, autoShare = false)
+    }
+
+    /** True while a share is being cleaned/shortened or its result is on screen. */
+    fun hasShareState(): Boolean = _uiState.value.let {
+        it.isCleaning || it.result != null || it.candidates.isNotEmpty() || it.notice != null
     }
 
     private fun applyQuickMode(result: CleaningResult) {

@@ -4,78 +4,41 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Intent
-import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.annotation.StringRes
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import java.io.File
-import tw.kuies.link.data.OkHttpShortUrlRepository
-import tw.kuies.link.data.ShortUrlApiClient
-import tw.kuies.link.domain.CleaningStatus
-import tw.kuies.link.settings.DataStoreSettingsRepository
 import tw.kuies.link.settings.ThemeMode
-import tw.kuies.link.settings.linkSettingsDataStore
 import tw.kuies.link.ui.LinkApp
 import tw.kuies.link.ui.LinkNotice
 import tw.kuies.link.ui.LinkViewModel
-import tw.kuies.link.ui.QuickShareNotice
 import tw.kuies.link.ui.ShareRequest
 import tw.kuies.link.ui.theme.KuiesLinkTheme
-import tw.kuies.link.update.AndroidApkMetadataSource
-import tw.kuies.link.update.AndroidUpdateInstaller
-import tw.kuies.link.update.ApkDownloader
-import tw.kuies.link.update.ApkVerifier
-import tw.kuies.link.update.DefaultUpdateCoordinator
-import tw.kuies.link.update.UpdateApi
-import tw.kuies.link.update.UpdateChecker
-import tw.kuies.link.update.UpdateConfig
-import tw.kuies.link.update.UpdateManager
 
+/**
+ * The home screen and the manual "paste a URL" flow. Incoming text shares never land here any
+ * more: they go to [ShareActivity], which owns a separate task so the source app keeps its
+ * screen and this task is never pulled to the front.
+ */
 class MainActivity : ComponentActivity() {
 
     private val viewModel: LinkViewModel by viewModels {
         viewModelFactory {
-            initializer {
-                val repository = OkHttpShortUrlRepository(
-                    ShortUrlApiClient(
-                        baseUrl = getString(R.string.shortener_api_base_url),
-                        // Only a debuggable build may talk plain HTTP, and only to localhost (the
-                        // end-to-end check uses `adb reverse` to a local backend).
-                        allowLocalhostHttp = isDebuggable(),
-                    ),
-                )
-                LinkViewModel(
-                    settingsRepository = DataStoreSettingsRepository(
-                        applicationContext.linkSettingsDataStore,
-                    ),
-                    shortenRequest = repository::shorten,
-                    updater = buildUpdateCoordinator(),
-                )
-            }
+            initializer { createLinkViewModel(applicationContext) }
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-        // A restored instance (rotation, process death) re-delivers the original intent; the
-        // ViewModel already owns that state, so only a genuinely new launch is dispatched.
-        if (savedInstanceState == null) {
-            dispatchShareIntent(intent)
-        }
 
         setContent {
             val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -87,10 +50,6 @@ class MainActivity : ComponentActivity() {
             }
 
             KuiesLinkTheme(darkTheme = darkTheme) {
-                LaunchedEffect(viewModel) {
-                    viewModel.shareRequests.collect { request -> launchChooser(request) }
-                }
-
                 LinkApp(
                     state = state,
                     onInputChange = viewModel::onInputChange,
@@ -137,56 +96,6 @@ class MainActivity : ComponentActivity() {
         viewModel.onResume()
     }
 
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        dispatchShareIntent(intent)
-    }
-
-    private fun dispatchShareIntent(intent: Intent?) {
-        if (intent?.action != Intent.ACTION_SEND) return
-        val type = intent.type
-        if (type != null && !type.startsWith("text/", ignoreCase = true)) return
-        val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
-        viewModel.onShareIntent(text)
-    }
-
-    private fun isDebuggable(): Boolean =
-        (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
-
-    private fun buildUpdateCoordinator(): DefaultUpdateCoordinator {
-        val trust = UpdateConfig.trust(
-            debuggable = isDebuggable(),
-            apiBase = BuildConfig.UPDATE_API_BASE,
-            assetBase = BuildConfig.UPDATE_ASSET_BASE,
-        )
-        val versionCode = installedVersionCode()
-        val manager = UpdateManager(
-            trust = trust,
-            api = UpdateApi(trust),
-            checker = UpdateChecker(trust, packageName, versionCode, Build.VERSION.SDK_INT),
-            downloader = ApkDownloader(
-                client = UpdateApi.downloadClient(),
-                trust = trust,
-                directory = File(cacheDir, "updates"),
-            ),
-            verifier = ApkVerifier(AndroidApkMetadataSource(applicationContext)),
-            packageName = packageName,
-            currentVersionCode = versionCode,
-        )
-        return DefaultUpdateCoordinator(manager, AndroidUpdateInstaller(applicationContext))
-    }
-
-    private fun installedVersionCode(): Long {
-        val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
-        } else {
-            @Suppress("DEPRECATION")
-            packageManager.getPackageInfo(packageName, 0)
-        }
-        return info.longVersionCode
-    }
-
     private fun readClipboardText(): String? {
         val clipboard = getSystemService(ClipboardManager::class.java) ?: return null
         val clip = clipboard.primaryClip ?: return null
@@ -207,9 +116,6 @@ class MainActivity : ComponentActivity() {
         request: ShareRequest,
         @StringRes chooserTitleRes: Int = R.string.share_chooser_title,
     ) {
-        // Shown right before the sheet opens; one toast per share event, never re-fired by
-        // recomposition or Activity recreation (the request itself is one-shot).
-        request.quickNotice?.let(::showQuickNotice)
         val send = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, request.url)
@@ -223,18 +129,5 @@ class MainActivity : ComponentActivity() {
         // No Activity Result / finish(): closing the sheet must land back on this Activity with
         // the cleaning result intact. The chooser's result code says nothing about a share.
         startActivity(chooser)
-    }
-
-    private fun showQuickNotice(notice: QuickShareNotice) {
-        val message = if (notice.isShortUrl) {
-            getString(R.string.quick_notice_short_url)
-        } else {
-            when (notice.status) {
-                CleaningStatus.CLEANED -> getString(R.string.quick_notice_cleaned, notice.removedCount)
-                CleaningStatus.UNCHANGED -> getString(R.string.quick_notice_unchanged)
-                else -> return
-            }
-        }
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 }

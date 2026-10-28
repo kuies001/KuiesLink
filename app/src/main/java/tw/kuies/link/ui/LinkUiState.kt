@@ -8,6 +8,12 @@ import tw.kuies.link.settings.PreferredShareTarget
 import tw.kuies.link.settings.ShareMode
 import tw.kuies.link.settings.ThemeMode
 
+/**
+ * Selects how an incoming share is presented. [DIALOG] is used by the translucent ShareActivity:
+ * it always prepares a short URL and never opens the system share sheet on its own.
+ */
+enum class ShareEntry { HOME, DIALOG }
+
 data class LinkUiState(
     val input: String = "",
     val result: CleaningResult? = null,

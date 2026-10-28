@@ -37,7 +37,20 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
 
+        <!--
+          Text shares land here, not in MainActivity: a separate affinity keeps the KuiesLink home
+          task out of the foreground and the translucent theme keeps the source app visible.
+        -->
+        <activity
+            android:name=".ShareActivity"
+            android:autoRemoveFromRecents="true"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity="tw.kuies.link.share"
+            android:theme="@style/Theme.KuiesLink.ShareDialog">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
 

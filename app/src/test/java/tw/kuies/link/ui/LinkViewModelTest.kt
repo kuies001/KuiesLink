@@ -231,6 +231,167 @@ class LinkViewModelTest {
     }
 
     @Test
+    fun dialogSharePreparesTheShortUrlWithoutOpeningTheShareSheet() = runTest(dispatcher) {
+        val sent = mutableListOf<String>()
+        val viewModel = LinkViewModel(
+            settingsRepository = FakeSettings(ShareMode.QUICK),
+            computeDispatcher = dispatcher,
+            shortenRequest = { url ->
+                sent += url
+                success(shortUrl = "https://u.kuies.tw/dlg")
+            },
+            shareEntry = ShareEntry.DIALOG,
+        )
+        val requests = collectShareRequests(viewModel)
+
+        viewModel.onShareIntent("https://www.instagram.com/reel/DcClyQgikR4/?igsh=MW9xZ2F0")
+        advanceUntilIdle()
+
+        // The raw URL goes to the backend; the locally cleaned one is never forwarded by itself.
+        assertEquals(
+            listOf("https://www.instagram.com/reel/DcClyQgikR4/?igsh=MW9xZ2F0"),
+            sent,
+        )
+        assertTrue("the dialog must not open the share sheet", requests.isEmpty())
+        assertEquals("https://u.kuies.tw/dlg", viewModel.uiState.value.shortResult?.shortUrl)
+        assertEquals(false, viewModel.uiState.value.isShortening)
+        assertEquals(CleaningStatus.CLEANED, viewModel.uiState.value.result?.status)
+    }
+
+    @Test
+    fun dialogShareAlsoPreparesAShortUrlForAnUnchangedUrl() = runTest(dispatcher) {
+        val sent = mutableListOf<String>()
+        val viewModel = LinkViewModel(
+            settingsRepository = FakeSettings(ShareMode.CONFIRM),
+            computeDispatcher = dispatcher,
+            shortenRequest = { url ->
+                sent += url
+                success(shortUrl = "https://u.kuies.tw/same", removedCount = 0, cleaningStatus = "UNCHANGED")
+            },
+            shareEntry = ShareEntry.DIALOG,
+        )
+
+        viewModel.onShareIntent("https://example.com/p?id=7")
+        advanceUntilIdle()
+
+        assertEquals(listOf("https://example.com/p?id=7"), sent)
+        assertEquals("https://u.kuies.tw/same", viewModel.uiState.value.shortResult?.shortUrl)
+        assertEquals(CleaningStatus.UNCHANGED, viewModel.uiState.value.result?.status)
+    }
+
+    @Test
+    fun dialogShareResolvesWrappersThroughTheBackend() = runTest(dispatcher) {
+        val sent = mutableListOf<String>()
+        val viewModel = LinkViewModel(
+            settingsRepository = FakeSettings(ShareMode.CONFIRM),
+            computeDispatcher = dispatcher,
+            shortenRequest = { url ->
+                sent += url
+                success(
+                    shortUrl = "https://u.kuies.tw/wrap",
+                    resolutionStatus = "RESOLVED",
+                )
+            },
+            shareEntry = ShareEntry.DIALOG,
+        )
+
+        viewModel.onShareIntent("https://l.facebook.com/l.php?u=https%3A%2F%2Fexample.com%2F&h=AT1")
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf("https://l.facebook.com/l.php?u=https%3A%2F%2Fexample.com%2F&h=AT1"),
+            sent,
+        )
+        assertEquals(CleaningStatus.UNRESOLVED_WRAPPER, viewModel.uiState.value.result?.status)
+        assertEquals("https://u.kuies.tw/wrap", viewModel.uiState.value.shortResult?.shortUrl)
+    }
+
+    @Test
+    fun dialogShareWithoutAUrlNeverCallsTheBackend() = runTest(dispatcher) {
+        var calls = 0
+        val viewModel = LinkViewModel(
+            settingsRepository = FakeSettings(ShareMode.CONFIRM),
+            computeDispatcher = dispatcher,
+            shortenRequest = { calls++; success() },
+            shareEntry = ShareEntry.DIALOG,
+        )
+
+        viewModel.onShareIntent("這段文字沒有網址")
+        advanceUntilIdle()
+
+        assertEquals(0, calls)
+        assertEquals(LinkNotice.NoUrlFound, viewModel.uiState.value.notice)
+        assertNull(viewModel.uiState.value.result)
+    }
+
+    @Test
+    fun dialogShortenFailureKeepsTheCleanedResultOnScreen() = runTest(dispatcher) {
+        val viewModel = LinkViewModel(
+            settingsRepository = FakeSettings(ShareMode.QUICK),
+            computeDispatcher = dispatcher,
+            shortenRequest = { ShortenResult.Failure(ShortenError.TIMEOUT) },
+            shareEntry = ShareEntry.DIALOG,
+        )
+        val requests = collectShareRequests(viewModel)
+
+        viewModel.onShareIntent("https://example.com/p?utm_source=igsh")
+        advanceUntilIdle()
+        advanceUntilIdle()
+
+        // No automatic retry; the dialog offers the cleaned URL as the fallback.
+        assertTrue(requests.isEmpty())
+        assertNull(viewModel.uiState.value.shortResult)
+        assertEquals(ShortenError.TIMEOUT, viewModel.uiState.value.shortenError)
+        assertEquals(
+            "https://example.com/p",
+            viewModel.uiState.value.result?.cleanedUrl,
+        )
+        assertEquals(false, viewModel.uiState.value.isShortening)
+    }
+
+    @Test
+    fun dialogDuplicateShareDoesNotPostTwice() = runTest(dispatcher) {
+        var calls = 0
+        val viewModel = LinkViewModel(
+            settingsRepository = FakeSettings(ShareMode.CONFIRM),
+            computeDispatcher = dispatcher,
+            shortenRequest = { calls++; success() },
+            shareEntry = ShareEntry.DIALOG,
+        )
+
+        viewModel.onShareIntent("https://example.com/p?utm_source=a")
+        viewModel.onShareIntent("https://example.com/p?utm_source=a")
+        advanceUntilIdle()
+
+        assertEquals(1, calls)
+    }
+
+    @Test
+    fun dialogNewShareCancelsTheOldShortenAndItsLateResponse() = runTest(dispatcher) {
+        val gateA = CompletableDeferred<ShortenResult>()
+        val gateB = CompletableDeferred<ShortenResult>()
+        val viewModel = LinkViewModel(
+            settingsRepository = FakeSettings(ShareMode.CONFIRM),
+            computeDispatcher = dispatcher,
+            shortenRequest = { url -> if (url.contains("/a")) gateA.await() else gateB.await() },
+            shareEntry = ShareEntry.DIALOG,
+        )
+
+        viewModel.onShareIntent("https://example.com/a?utm_source=one")
+        advanceUntilIdle()
+        viewModel.onShareIntent("https://example.com/b?utm_source=two")
+        advanceUntilIdle()
+
+        gateA.complete(success(shortUrl = "https://u.kuies.tw/a"))
+        advanceUntilIdle()
+        assertNull("a stale response must not land", viewModel.uiState.value.shortResult)
+
+        gateB.complete(success(shortUrl = "https://u.kuies.tw/b"))
+        advanceUntilIdle()
+        assertEquals("https://u.kuies.tw/b", viewModel.uiState.value.shortResult?.shortUrl)
+    }
+
+    @Test
     fun emptyShareShowsAnExplanationInsteadOfCrashing() = runTest(dispatcher) {
         val viewModel = LinkViewModel(FakeSettings(ShareMode.CONFIRM), computeDispatcher = dispatcher)
         val requests = collectShareRequests(viewModel)

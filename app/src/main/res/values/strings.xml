@@ -74,18 +74,18 @@
     <string name="settings_mode_confirm_title">確認模式</string>
     <string name="settings_mode_confirm_body">先顯示清理結果，由你決定要複製還是分享。</string>
     <string name="settings_mode_quick_title">快速模式</string>
-    <string name="settings_mode_quick_body">清理後直接開啟系統分享選單。網址沒有變更或無法判斷時，會回到確認畫面。</string>
+    <string name="settings_mode_quick_body">分享後會自動建立短網址，結果顯示在小視窗，由你決定複製或分享。</string>
     <string name="preferred_target_title">預設分享網址類型</string>
     <string name="preferred_target_clean_title">乾淨網址</string>
-    <string name="preferred_target_clean_body">快速模式直接分享本機清理後的網址，不連線到伺服器。</string>
+    <string name="preferred_target_clean_body">在首頁流程使用本機清理後的網址，不建立短網址。</string>
     <string name="preferred_target_short_title">KuiesLink 短網址</string>
-    <string name="preferred_target_short_body">快速模式會把原始網址送到 u.kuies.tw 清理並建立短網址，再分享短網址。</string>
+    <string name="preferred_target_short_body">在首頁流程建立 u.kuies.tw 短網址；從其他 App 分享時一律建立短網址。</string>
     <string name="settings_about_title">關於</string>
     <string name="settings_version">版本 %1$s</string>
     <string name="settings_privacy_title">隱私說明</string>
-    <string name="settings_privacy_body">一般清理都在這支手機上完成。只有在你按下「清理並縮短網址」，或快速模式預設分享短網址時，原始網址才會送到 u.kuies.tw 建立短網址；伺服器不會保存你貼上的其他內容。App 只在裝置上保存你的分享模式與網址類型設定。</string>
+    <string name="settings_privacy_body">一般清理都在這支手機上完成。從其他 App 分享網址，或按下「清理並縮短網址」時，原始網址會送到 u.kuies.tw 清理並建立短網址；伺服器不會保存你貼上的其他內容。App 只在裝置上保存你的偏好設定。</string>
     <string name="settings_github_link">kuies001/kuies-short-url</string>
-    <string name="settings_v010_note">短網址是可選功能；不使用時不會連線到伺服器。</string>
+    <string name="settings_v010_note">短網址是可選功能；從其他 App 分享時會自動建立，手動流程則由你按下按鈕才連線。</string>
 
     <string name="share_chooser_title">分享乾淨網址</string>
     <string name="short_share_chooser_title">分享短網址</string>

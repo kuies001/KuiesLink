@@ -193,7 +193,7 @@ fun SettingsScreen(
             title = "分享模式",
             options = listOf(
                 Choice(ShareMode.CONFIRM, "確認模式", "先看清結果再分享"),
-                Choice(ShareMode.QUICK, "快速模式", "清理後直接開啟分享選單"),
+                Choice(ShareMode.QUICK, "快速模式", "自動建立短網址並顯示結果小視窗"),
             ),
             selected = state.shareMode,
             onSelect = onShareModeChange,
@@ -225,8 +225,8 @@ fun SettingsScreen(
 
         SettingsDialog.Privacy -> InfoDialog(
             title = "隱私說明",
-            body = "一般清理都在這支手機上完成。只有在你按下「建立短網址」，" +
-                "或快速模式預設分享短網址時，原始網址才會送到 u.kuies.tw 建立短網址；" +
+            body = "一般清理都在這支手機上完成。從其他 App 分享網址，或按下「建立短網址」時，" +
+                "原始網址會送到 u.kuies.tw 清理並建立短網址；" +
                 "短網址服務會保存導向資料以提供轉址。App 只在裝置上保存你的偏好設定；" +
                 "檢查更新時會向 GitHub Releases 取得版本資訊，下載的 APK 只暫存在 App 快取。",
             onDismiss = { dialog = null },

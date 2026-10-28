@@ -274,20 +274,3 @@ private fun warningLabel(warning: String): String? = when (warning) {
     "cleaning_scope_supported_params_only" -> "只清理已知的追蹤參數"
     else -> null
 }
-
-@StringRes
-private fun ShortenError.messageRes(): Int = when (this) {
-    ShortenError.INVALID_REQUEST -> R.string.error_invalid_request
-    ShortenError.WRAPPER_UNRESOLVED -> R.string.error_wrapper_unresolved
-    ShortenError.RATE_LIMITED -> R.string.error_rate_limited
-    ShortenError.SERVER_ERROR -> R.string.error_server
-    ShortenError.NETWORK -> R.string.error_network
-    ShortenError.TIMEOUT -> R.string.error_timeout
-    ShortenError.TLS -> R.string.error_tls
-    ShortenError.INVALID_RESPONSE -> R.string.error_invalid_response
-    ShortenError.UNVERIFIED -> R.string.error_unverified
-    ShortenError.CANCELLED -> R.string.error_cancelled
-}
-
-private fun ShortenError.isRetryable(): Boolean =
-    this != ShortenError.INVALID_REQUEST && this != ShortenError.WRAPPER_UNRESOLVED
