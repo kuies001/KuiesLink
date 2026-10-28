@@ -2,7 +2,7 @@
 
 ## 下載
 
-**[下載最新版 APK](https://github.com/kuies001/KuiesLink/releases/latest)** ・ [v0.3.3 直接下載](https://github.com/kuies001/KuiesLink/releases/download/v0.3.3/KuiesLink-v0.3.3.apk) ・ [SHA-256 檢查碼](https://github.com/kuies001/KuiesLink/releases/download/v0.3.3/KuiesLink-v0.3.3.apk.sha256)
+**[下載最新版 APK](https://github.com/kuies001/KuiesLink/releases/latest)** ・ [v0.3.4 直接下載](https://github.com/kuies001/KuiesLink/releases/download/v0.3.4/KuiesLink-v0.3.4.apk) ・ [SHA-256 檢查碼](https://github.com/kuies001/KuiesLink/releases/download/v0.3.4/KuiesLink-v0.3.4.apk.sha256)
 
 KuiesLink 是一個 Android 網址清理與短網址工具：貼上或從其他 App 分享連結，先移除已知的追蹤參數，再選擇分享乾淨網址或建立 Kuies 短網址。
 
@@ -14,7 +14,7 @@ App 以 Kotlin + Jetpack Compose + Material 3 撰寫，走工業簡約風，支�
 - **短網址**：可選擇建立 `u.kuies.tw` 短網址，或只分享清理後的原網址。
 - **分享模式**
   - 確認模式：先看清清理結果，再決定複製或分享。
-  - 快速模式：清理後直接開啟系統分享選單。
+  - 快速模式：自動建立短網址並顯示結果小視窗，不再自動開啟分享選單。
 - **Sharesheet 入口**：可從其他 App 的分享選單選擇 KuiesLink。
 - **離線清理**：一般清理在裝置上完成；只有建立短網址時才會連線到後端。
 - **設定保存**：分享模式、分享內容、深色模式等偏好以 DataStore 保存在裝置上。
@@ -38,7 +38,7 @@ App 以 Kotlin + Jetpack Compose + Material 3 撰寫，走工業簡約風，支�
 ## 離線清理與短網址
 
 - 一般清理在手機上完成，不會上傳你貼上的文字。
-- 按下「清理並縮短網址」，或快速模式預設分享短網址時，原始網址會送到 `https://u.kuies.tw` 清理並建立短網址。
+- 從其他 App 分享，或按下「清理並縮短網址」時，原始網址會送到 `https://u.kuies.tw` 清理並建立短網址。
 - 短網址服務需要保存短碼與導向目標，才能提供轉址；伺服器不會保存你貼上的其他內容。
 - 短網址清理依後端目前支援的規則執行；後端回報 `CLEANED`、`UNCHANGED` 或 `UNSUPPORTED`，App 不會把不確定的結果宣稱為已清理。
 

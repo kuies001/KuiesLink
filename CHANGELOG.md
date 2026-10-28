@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.4 (versionCode 11) — 2026-10-29
+
+- 外部分享改為透明 Dialog Activity：保留來源 App 畫面，不再跳回 KuiesLink 首頁。
+- 小視窗顯示原始／清理後／短網址與移除參數，提供複製、分享、完成。
+- 外部分享自動建立短網址；取消 Sharesheet 會回到小視窗，完成／返回回到來源 App。
+- 首頁手動輸入仍維持完整「處理結果」頁。
+- 更新隱私說明與快速模式文案。
+
 ## 0.3.3 (versionCode 10) — 2026-10-22
 
 - 新增 App 內檢查更新：只讀取 GitHub Releases 的最新正式版本，以 `versionCode` 判斷。
