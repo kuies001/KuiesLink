@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -312,6 +313,7 @@ fun DetailsDisclosure(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .testTag("cleaning_details_toggle")
                 .clickable(onClick = onToggle)
                 .padding(vertical = Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
@@ -328,7 +330,10 @@ fun DetailsDisclosure(
             )
         }
         AnimatedVisibility(visible = expanded) {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            Column(
+                modifier = Modifier.testTag("cleaning_details_content"),
+                verticalArrangement = Arrangement.spacedBy(Spacing.md),
+            ) {
                 content()
             }
         }

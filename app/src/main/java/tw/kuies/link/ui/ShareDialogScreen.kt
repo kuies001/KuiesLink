@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -39,27 +38,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import tw.kuies.link.R
 import tw.kuies.link.data.ShortenResponse
 import tw.kuies.link.domain.CleaningResult
-import tw.kuies.link.domain.CleaningStatus
+import tw.kuies.link.domain.UrlDiffSegment
+import tw.kuies.link.ui.components.CleaningDetailsContent
+import tw.kuies.link.ui.components.DetailsDisclosure
+import tw.kuies.link.ui.components.DiffUrlBox
 import tw.kuies.link.ui.components.KuiesIcon
 import tw.kuies.link.ui.components.KuiesIconKind
 import tw.kuies.link.ui.components.KuiesPrimaryButton
 import tw.kuies.link.ui.components.KuiesSecondaryButton
 import tw.kuies.link.ui.theme.Spacing
-import tw.kuies.link.ui.theme.UrlTextStyle
 
 private enum class DialogPhase { Processing, Success, Failure }
 
 /**
  * The compact external-share result. It deliberately reuses the same dark palette and components
  * as the full result screen, but shows only what is needed to compare before/after and hand the
- * short URL on.
+ * short URL on. Detailed parameters stay collapsed until the user asks for them.
  */
 @Composable
 fun ShareDialogScreen(
@@ -109,50 +110,45 @@ fun ShareDialogScreen(
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             shadowElevation = 16.dp,
         ) {
-            var actionsHeightPx by remember { mutableStateOf(0) }
-            val actionsPadding = with(LocalDensity.current) { actionsHeightPx.toDp() }
+            DialogScaffold(
+                content = {
+                    Column(
+                        modifier = Modifier
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 20.dp, vertical = 18.dp),
+                    ) {
+                        DialogHeader(phase)
+                        Spacer(Modifier.height(Spacing.md))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        Spacer(Modifier.height(Spacing.md))
 
-            Box {
-                Column(
-                    modifier = Modifier
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 20.dp, vertical = 18.dp)
-                        // Keep the scrollable content clear of the pinned actions.
-                        .padding(bottom = actionsPadding),
-                ) {
-                    DialogHeader(phase)
-                    Spacer(Modifier.height(Spacing.md))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Spacer(Modifier.height(Spacing.md))
-
-                    when (phase) {
-                        DialogPhase.Processing -> ProcessingBody(state, clean)
-                        DialogPhase.Success -> SuccessBody(state, clean, short)
-                        DialogPhase.Failure -> FailureBody(state, clean)
+                        when (phase) {
+                            DialogPhase.Processing -> ProcessingBody(state, clean)
+                            DialogPhase.Success -> SuccessBody(clean, short)
+                            DialogPhase.Failure -> FailureBody(state, clean)
+                        }
                     }
-                }
-
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surface)
-                        .onSizeChanged { actionsHeightPx = it.height }
-                        .padding(start = 20.dp, end = 20.dp, top = Spacing.md, bottom = 18.dp),
-                ) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Spacer(Modifier.height(Spacing.md))
-                    DialogActions(
-                        phase = phase,
-                        state = state,
-                        clean = clean,
-                        short = short,
-                        onCopyShortUrl = onCopyShortUrl,
-                        onShareShortUrl = onShareShortUrl,
-                        onFinish = onFinish,
-                    )
-                }
-            }
+                },
+                actions = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surface)
+                            .padding(start = 20.dp, end = 20.dp, top = Spacing.md, bottom = 18.dp),
+                    ) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        Spacer(Modifier.height(Spacing.md))
+                        DialogActions(
+                            phase = phase,
+                            clean = clean,
+                            short = short,
+                            onCopyShortUrl = onCopyShortUrl,
+                            onShareShortUrl = onShareShortUrl,
+                            onFinish = onFinish,
+                        )
+                    }
+                },
+            )
         }
     }
 }
@@ -171,8 +167,8 @@ private fun DialogHeader(phase: DialogPhase) {
     }
     val chipLabel = when (phase) {
         DialogPhase.Processing -> "處理中"
-        DialogPhase.Success -> "成功"
-        DialogPhase.Failure -> "失敗"
+        DialogPhase.Success -> "已完成"
+        DialogPhase.Failure -> "未完成"
     }
 
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -237,65 +233,83 @@ private fun ProcessingBody(state: LinkUiState, clean: CleaningResult?) {
     val original = clean?.originalUrl ?: state.input.takeIf { it.isNotBlank() }
     if (original != null) {
         Spacer(Modifier.height(Spacing.lg))
-        DialogUrl("原始網址", original)
+        DiffUrlBox(
+            label = "原始網址",
+            segments = listOf(UrlDiffSegment(original, removed = false)),
+        )
     }
 }
 
 @Composable
-private fun SuccessBody(
-    state: LinkUiState,
-    clean: CleaningResult?,
-    short: ShortenResponse?,
-) {
+private fun SuccessBody(clean: CleaningResult?, short: ShortenResponse?) {
     if (short == null) return
-    val unsupported = short.cleaningStatus == ShortenResponse.STATUS_UNSUPPORTED
-    val cleanedNothing = short.cleaningStatus == ShortenResponse.STATUS_UNCHANGED
-    val removedCount = short.removedCount
+    val result = clean ?: return
+    val report = buildCleaningReport(result, short)
+    val summary = report.summaryText(shortUrlCreated = true)
+    var detailsExpanded by rememberSaveable(report.originalUrl, short.shortUrl) {
+        mutableStateOf(false)
+    }
 
     Text(
-        text = when {
-            unsupported -> "已建立短網址"
-            cleanedNothing -> "無須清理，已建立短網址"
-            else -> "已清理並建立短網址"
-        },
+        text = summary.title,
         style = MaterialTheme.typography.titleMedium,
     )
     Spacer(Modifier.height(Spacing.sm))
     Text(
-        text = when {
-            unsupported -> "未支援此網站的清理規則"
-            removedCount > 0 -> "已依目前支援規則完成清理"
-            else -> "沒有需要移除的追蹤參數"
-        },
+        text = summary.subtitle,
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 
-    if (!unsupported && removedCount > 0) {
-        Spacer(Modifier.height(Spacing.xs))
-        RemovedParamsRow(count = removedCount, names = short.removedParams)
+    Spacer(Modifier.height(Spacing.md))
+    DetailsDisclosure(
+        expanded = detailsExpanded,
+        onToggle = { detailsExpanded = !detailsExpanded },
+        title = "清理詳細資訊",
+    ) {
+        CleaningDetailsContent(report)
     }
 
     Spacer(Modifier.height(Spacing.md))
-    DialogUrl("原始網址", clean?.originalUrl ?: short.targetUrl)
+    DiffUrlBox(
+        label = if (report.resolvedWrapper) "原始分享網址" else "原始網址",
+        segments = report.diff.originalSegments,
+        supportingText = when {
+            report.diff.hasRemoved -> "紅色標示為已移除的追蹤參數"
+            report.resolvedWrapper -> "這是分享平台的包裝連結"
+            else -> null
+        },
+    )
+    report.targetUrl?.let { target ->
+        Spacer(Modifier.height(Spacing.sm))
+        DiffUrlBox(
+            label = report.targetLabel(),
+            segments = listOf(UrlDiffSegment(target, removed = false)),
+            supportingText = report.targetNote(),
+        )
+    }
+
     Spacer(Modifier.height(Spacing.sm))
-    DialogUrl("清理後網址", short.targetUrl)
-    Spacer(Modifier.height(Spacing.sm))
-    DialogUrl("短網址", short.shortUrl, emphasized = true)
+    DiffUrlBox(
+        label = "短網址",
+        segments = listOf(UrlDiffSegment(short.shortUrl, removed = false)),
+        supportingText = "此短網址會導向${report.targetLabel()}。",
+        emphasized = true,
+    )
 }
 
 @Composable
 private fun FailureBody(state: LinkUiState, clean: CleaningResult?) {
+    val report = clean?.let { buildCleaningReport(it, short = null) }
     val title = when {
         clean == null && state.notice == LinkNotice.EmptyShare -> "沒有收到分享內容"
         clean == null && state.notice == LinkNotice.NoUrlFound -> "找不到可清理的網址"
         clean == null && state.notice == LinkNotice.MultipleUrls -> "這段文字有多個網址"
         clean == null -> "無法處理這個網址"
-        clean.status == CleaningStatus.INVALID_URL -> "這不是有效的網址"
-        clean.status == CleaningStatus.FAILED -> "清理未完成"
-        state.shortenError != null && clean.status == CleaningStatus.UNCHANGED ->
-            "網址無須清理，但短網址建立失敗"
-        state.shortenError != null -> "已清理，但短網址建立失敗"
+        state.shortenError != null -> "短網址建立失敗"
+        report?.outcome == CleaningOutcome.INVALID -> "這不是有效的網址"
+        report?.outcome == CleaningOutcome.FAILED -> "清理未完成"
+        report?.outcome == CleaningOutcome.UNRESOLVED -> "暫時無法還原連結"
         else -> "無法處理這個網址"
     }
     val message = when {
@@ -304,9 +318,21 @@ private fun FailureBody(state: LinkUiState, clean: CleaningResult?) {
             "KuiesLink 不會自行猜測，請回到 App 後再選擇其中一個連結。"
         clean == null && state.notice == LinkNotice.EmptyShare -> "分享內容是空的，沒有網址可以清理。"
         clean == null -> "找不到可清理的 HTTP 或 HTTPS 網址。"
-        clean.status == CleaningStatus.INVALID_URL -> "請確認分享內容包含完整的 HTTP 或 HTTPS 網址。"
-        clean.status == CleaningStatus.FAILED -> "原始網址已保留，稍後可以再試一次。"
+        report?.outcome == CleaningOutcome.INVALID -> "請確認分享內容包含完整的 HTTP 或 HTTPS 網址。"
+        report?.outcome == CleaningOutcome.FAILED -> "原始網址已保留，稍後可以再試一次。"
         else -> "請稍後再試一次。"
+    }
+    val cleaningNote = if (state.shortenError != null) {
+        when (report?.outcome) {
+            CleaningOutcome.CLEANED -> "本機已清理網址，但短網址未建立。"
+            CleaningOutcome.UNCHANGED -> "本機未發現需要移除的參數，原始網址已保留。"
+            CleaningOutcome.UNRESOLVED -> "包裝連結尚未還原，原始網址已保留。"
+            CleaningOutcome.INCONCLUSIVE -> "本機清理結果無法確認，原始網址已保留。"
+            CleaningOutcome.INVALID, CleaningOutcome.FAILED -> "原始網址已保留。"
+            else -> null
+        }
+    } else {
+        null
     }
 
     Text(
@@ -320,79 +346,42 @@ private fun FailureBody(state: LinkUiState, clean: CleaningResult?) {
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-
-    clean?.let { result ->
-        Spacer(Modifier.height(Spacing.lg))
-        DialogUrl("原始網址", result.originalUrl)
-        if (result.isShareable && result.cleanedUrl != result.originalUrl) {
-            Spacer(Modifier.height(Spacing.md))
-            DialogUrl("清理後網址", result.cleanedUrl)
-        }
-    }
-}
-
-@Composable
-private fun RemovedParamsRow(count: Int, names: List<String>) {
-    var expanded by rememberSaveable(names) { mutableStateOf(false) }
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = !expanded }
-                .padding(vertical = Spacing.xs),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "已移除 $count 個追蹤參數",
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.weight(1f),
-            )
-            KuiesIcon(
-                if (expanded) KuiesIconKind.ChevronUp else KuiesIconKind.ChevronDown,
-                size = 18.dp,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        if (expanded) {
-            Text(
-                text = names.ifEmpty { listOf("未提供名稱") }.joinToString("、"),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun DialogUrl(label: String, url: String, emphasized: Boolean = false) {
-    Column {
+    if (cleaningNote != null) {
+        Spacer(Modifier.height(Spacing.xs))
         Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
+            text = cleaningNote,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.height(Spacing.xs))
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.small,
-            color = if (emphasized) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            },
+    }
+
+    if (report != null) {
+        var detailsExpanded by rememberSaveable(report.originalUrl) { mutableStateOf(false) }
+        Spacer(Modifier.height(Spacing.md))
+        DetailsDisclosure(
+            expanded = detailsExpanded,
+            onToggle = { detailsExpanded = !detailsExpanded },
+            title = "清理詳細資訊",
         ) {
-            SelectionContainer {
-                Text(
-                    text = url,
-                    modifier = Modifier.padding(horizontal = Spacing.md, vertical = 10.dp),
-                    style = UrlTextStyle,
-                    color = if (emphasized) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
-                )
-            }
+            CleaningDetailsContent(report)
+        }
+
+        Spacer(Modifier.height(Spacing.md))
+        DiffUrlBox(
+            label = if (report.resolvedWrapper) "原始分享網址" else "原始網址",
+            segments = report.diff.originalSegments,
+            supportingText = if (report.diff.hasRemoved) {
+                "紅色標示為已移除的追蹤參數"
+            } else {
+                null
+            },
+        )
+        report.targetUrl?.let { target ->
+            Spacer(Modifier.height(Spacing.sm))
+            DiffUrlBox(
+                label = report.targetLabel(),
+                segments = listOf(UrlDiffSegment(target, removed = false)),
+            )
         }
     }
 }
@@ -400,7 +389,6 @@ private fun DialogUrl(label: String, url: String, emphasized: Boolean = false) {
 @Composable
 private fun DialogActions(
     phase: DialogPhase,
-    state: LinkUiState,
     clean: CleaningResult?,
     short: ShortenResponse?,
     onCopyShortUrl: (String) -> Unit,
@@ -451,17 +439,35 @@ private fun DialogActions(
 
         DialogPhase.Failure -> {
             // The short URL is unavailable, so fall back to the best URL that still exists.
-            val fallback = clean?.let { if (it.isShareable) it.cleanedUrl else it.originalUrl }
+            val report = clean?.let { buildCleaningReport(it, short = null) }
+            val outcome = report?.outcome
+            val fallback = if (outcome == CleaningOutcome.CLEANED || outcome == CleaningOutcome.RESOLVED) {
+                report?.targetUrl ?: clean?.originalUrl
+            } else {
+                clean?.originalUrl
+            }
+            val copyLabel = when (outcome) {
+                CleaningOutcome.CLEANED -> "複製清理後網址"
+                CleaningOutcome.RESOLVED -> "複製還原後網址"
+                CleaningOutcome.UNCHANGED -> "複製原網址"
+                else -> "複製原始網址"
+            }
+            val shareLabel = when (outcome) {
+                CleaningOutcome.CLEANED -> "分享清理後網址"
+                CleaningOutcome.RESOLVED -> "分享還原後網址"
+                CleaningOutcome.UNCHANGED -> "分享原網址"
+                else -> "分享原始網址"
+            }
             if (fallback != null) {
                 KuiesPrimaryButton(
-                    text = if (clean?.isShareable == true) "複製清理後網址" else "複製原始網址",
+                    text = copyLabel,
                     onClick = { onCopyShortUrl(fallback) },
                     icon = KuiesIconKind.Copy,
                 )
                 if (clean?.isShareable == true) {
                     Spacer(Modifier.height(Spacing.sm))
                     KuiesSecondaryButton(
-                        text = "分享網址",
+                        text = shareLabel,
                         onClick = { onShareShortUrl(fallback) },
                         icon = KuiesIconKind.Share,
                     )
@@ -479,3 +485,42 @@ private fun DialogActions(
 }
 
 private val ScrimColor = Color.Black.copy(alpha = 0.45f)
+
+/**
+ * Measures the fixed actions first, then gives the remaining height to the scrollable content.
+ * This keeps the actions on screen even when the details are expanded on a short window.
+ */
+@Composable
+private fun DialogScaffold(
+    content: @Composable () -> Unit,
+    actions: @Composable () -> Unit,
+) {
+    Layout(
+        contents = listOf(content, actions),
+        modifier = Modifier.fillMaxWidth(),
+    ) { (contentMeasurables, actionsMeasurables), constraints ->
+        val actionsPlaceable = actionsMeasurables.single().measure(
+            Constraints(
+                minWidth = constraints.minWidth,
+                maxWidth = constraints.maxWidth,
+                minHeight = 0,
+                maxHeight = constraints.maxHeight,
+            ),
+        )
+        val contentMaxHeight = (constraints.maxHeight - actionsPlaceable.height).coerceAtLeast(0)
+        val contentPlaceable = contentMeasurables.single().measure(
+            Constraints(
+                minWidth = constraints.minWidth,
+                maxWidth = constraints.maxWidth,
+                minHeight = 0,
+                maxHeight = contentMaxHeight,
+            ),
+        )
+        val width = maxOf(contentPlaceable.width, actionsPlaceable.width)
+        val height = contentPlaceable.height + actionsPlaceable.height
+        layout(width, height) {
+            contentPlaceable.placeRelative(0, 0)
+            actionsPlaceable.placeRelative(0, contentPlaceable.height)
+        }
+    }
+}

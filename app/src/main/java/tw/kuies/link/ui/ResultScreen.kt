@@ -1,6 +1,5 @@
 package tw.kuies.link.ui
 
-import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -26,16 +25,16 @@ import androidx.compose.ui.unit.dp
 import tw.kuies.link.R
 import tw.kuies.link.data.ShortenError
 import tw.kuies.link.data.ShortenResponse
-import tw.kuies.link.domain.CleaningStatus
+import tw.kuies.link.domain.UrlDiffSegment
+import tw.kuies.link.ui.components.CleaningDetailsContent
 import tw.kuies.link.ui.components.DetailRow
 import tw.kuies.link.ui.components.DetailsDisclosure
+import tw.kuies.link.ui.components.DiffUrlBox
 import tw.kuies.link.ui.components.KuiesIconKind
 import tw.kuies.link.ui.components.KuiesPrimaryButton
 import tw.kuies.link.ui.components.KuiesSecondaryButton
 import tw.kuies.link.ui.components.KuiesTopBar
-import tw.kuies.link.ui.components.StatusSummaryCard
 import tw.kuies.link.ui.components.StatusVisual
-import tw.kuies.link.ui.components.UrlBox
 import tw.kuies.link.ui.theme.Spacing
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,63 +53,20 @@ fun ResultScreen(
 ) {
     val clean = state.result ?: return
     val short = state.shortResult
-    var detailsExpanded by rememberSaveable(clean.cleanedUrl, short?.shortUrl) {
+    val report = buildCleaningReport(clean, short)
+    val summary = report.summaryText(shortUrlCreated = short != null)
+    var detailsExpanded by rememberSaveable(clean.originalUrl, short?.shortUrl) {
         mutableStateOf(state.expandDetailsByDefault)
     }
 
-    val unresolved = clean.status == CleaningStatus.UNRESOLVED_WRAPPER
-    val failed = clean.status == CleaningStatus.INVALID_URL || clean.status == CleaningStatus.FAILED
-    val success = when {
-        short != null -> short.cleaningStatus == ShortenResponse.STATUS_CLEANED
-        else -> clean.status == CleaningStatus.CLEANED
-    }
-    val icon = when {
-        success -> KuiesIconKind.CheckCircle
-        unresolved -> KuiesIconKind.LinkOff
+    val icon = when (report.outcome) {
+        CleaningOutcome.CLEANED -> KuiesIconKind.CheckCircle
+        CleaningOutcome.UNRESOLVED -> KuiesIconKind.LinkOff
+        CleaningOutcome.RESOLVED -> KuiesIconKind.Link
         else -> KuiesIconKind.Info
     }
-    val title = when {
-        unresolved -> "暫時無法還原連結"
-        failed -> "無法處理這個網址"
-        short != null && success -> "已建立乾淨短網址"
-        short != null -> "已建立短網址"
-        success -> "已清理網址"
-        else -> "未發現已知追蹤參數"
-    }
-    val subtitle = when {
-        unresolved -> "目前無法還原這個分享連結，你可以使用原始網址，或稍後再試。"
-        failed -> "這個網址目前無法處理，請確認格式後再試一次。"
-        short != null && success -> "已依目前支援規則完成清理，可以直接分享這個連結。"
-        short != null && short.cleaningStatus == ShortenResponse.STATUS_UNSUPPORTED ->
-            "這個網站不在目前的清理規則內，網址可能仍含追蹤參數。"
-        short != null -> "目前沒有需要移除的已知參數。"
-        success -> "已依目前支援規則完成清理，可以建立短網址分享。"
-        else -> "目前沒有需要移除的已知參數。"
-    }
-    val shownUrl = when {
-        short != null -> short.shortUrl
-        unresolved -> clean.originalUrl
-        else -> clean.cleanedUrl
-    }
-    val removedCount = short?.removedCount ?: clean.removedCount
-    val removedNames = short?.removedParams ?: clean.removedParameters.map { it.name }
-    val statusTitle = when {
-        unresolved -> "無法還原包裝連結"
-        failed -> "無法處理這個網址"
-        short?.cleaningStatus == ShortenResponse.STATUS_CLEANED -> "已完成清理"
-        short?.cleaningStatus == ShortenResponse.STATUS_UNSUPPORTED -> "未支援此網站"
-        short != null -> "未發現已知追蹤參數"
-        clean.status == CleaningStatus.CLEANED -> "已完成清理"
-        else -> "未發現已知追蹤參數"
-    }
-    val statusSubtitle = when {
-        unresolved -> "目前無法取得原始內容網址"
-        failed -> "原始網址已保留"
-        short?.cleaningStatus == ShortenResponse.STATUS_CLEANED -> "已移除 $removedCount 個追蹤參數"
-        short?.cleaningStatus == ShortenResponse.STATUS_UNSUPPORTED -> "只建立短網址，未變更內容"
-        clean.status == CleaningStatus.CLEANED -> "已移除 $removedCount 個追蹤參數"
-        else -> "目前沒有需要移除的已知參數"
-    }
+    val success = report.outcome == CleaningOutcome.CLEANED
+    val targetUrl = report.targetUrl
 
     Column(
         modifier = Modifier
@@ -128,61 +84,68 @@ fun ResultScreen(
             Spacer(Modifier.height(Spacing.lg))
             StatusVisual(
                 icon = icon,
-                title = title,
-                subtitle = subtitle,
+                title = summary.title,
+                subtitle = summary.subtitle,
                 success = success,
             )
+
             Spacer(Modifier.height(Spacing.xl))
-            UrlBox(
-                url = shownUrl,
-                label = if (short != null) "短網址" else if (unresolved) "原始網址" else "清理後的網址",
-                emphasized = short != null,
-                onCopy = {
-                    if (short != null) onCopyShortUrl(short.shortUrl) else onCopyUrl(shownUrl)
+            DiffUrlBox(
+                label = if (report.resolvedWrapper) "原始分享網址" else "原始網址",
+                segments = report.diff.originalSegments,
+                supportingText = when {
+                    report.diff.hasRemoved -> "紅色標示為已移除的追蹤參數"
+                    report.resolvedWrapper -> "這是分享平台的包裝連結"
+                    else -> null
                 },
             )
 
+            if (targetUrl != null) {
+                Spacer(Modifier.height(Spacing.md))
+                DiffUrlBox(
+                    label = report.targetLabel(),
+                    segments = listOf(UrlDiffSegment(targetUrl, removed = false)),
+                    supportingText = report.targetNote(),
+                    emphasized = short != null || success,
+                    onCopy = { onCopyUrl(targetUrl) },
+                    copyDescription = "複製清理後網址",
+                )
+            }
+
             if (state.shortenError != null) {
                 Spacer(Modifier.height(Spacing.md))
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.small,
-                    color = MaterialTheme.colorScheme.errorContainer,
-                ) {
-                    Column(modifier = Modifier.padding(Spacing.md)) {
-                        Text(
-                            text = stringResource(state.shortenError.messageRes()),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                        )
-                        if (state.shortenError.isRetryable()) {
-                            TextButton(onClick = onRetryShorten) { Text("重試") }
-                        }
-                    }
+                ShortenErrorCard(
+                    error = state.shortenError,
+                    onRetryShorten = onRetryShorten,
+                )
+            }
+
+            Spacer(Modifier.height(Spacing.md))
+            DetailsDisclosure(
+                expanded = detailsExpanded,
+                onToggle = { detailsExpanded = !detailsExpanded },
+                title = "清理詳細資訊",
+            ) {
+                CleaningDetailsContent(report)
+                if (short != null) {
+                    TechnicalDetails(short = short, showTechnicalInfo = state.showTechnicalInfo)
                 }
             }
 
-            Spacer(Modifier.height(Spacing.lg))
-            when {
-                unresolved || failed -> {
-                    KuiesSecondaryButton(
-                        text = "複製原始網址",
-                        onClick = { onCopyUrl(clean.originalUrl) },
-                        icon = KuiesIconKind.Copy,
-                    )
-                    Spacer(Modifier.height(Spacing.sm))
-                    KuiesSecondaryButton(
-                        text = "重新處理",
-                        onClick = onRetryClean,
-                        icon = KuiesIconKind.Refresh,
-                    )
-                    if (unresolved && clean.isShareable) {
-                        TextButton(onClick = { onShareUrl(clean.originalUrl) }) {
-                            Text("分享原始網址")
-                        }
-                    }
-                }
+            if (short != null) {
+                Spacer(Modifier.height(Spacing.xl))
+                DiffUrlBox(
+                    label = "短網址",
+                    segments = listOf(UrlDiffSegment(short.shortUrl, removed = false)),
+                    supportingText = "此短網址會導向${report.targetLabel()}。",
+                    emphasized = true,
+                    onCopy = { onCopyShortUrl(short.shortUrl) },
+                    copyDescription = "複製短網址",
+                )
+            }
 
+            Spacer(Modifier.height(Spacing.xl))
+            when {
                 short != null -> {
                     KuiesPrimaryButton(
                         text = "分享短網址",
@@ -197,6 +160,27 @@ fun ResultScreen(
                     )
                 }
 
+                report.outcome == CleaningOutcome.UNRESOLVED ||
+                    report.outcome == CleaningOutcome.INVALID ||
+                    report.outcome == CleaningOutcome.FAILED -> {
+                    KuiesSecondaryButton(
+                        text = "複製原始網址",
+                        onClick = { onCopyUrl(clean.originalUrl) },
+                        icon = KuiesIconKind.Copy,
+                    )
+                    Spacer(Modifier.height(Spacing.sm))
+                    KuiesSecondaryButton(
+                        text = "重新處理",
+                        onClick = onRetryClean,
+                        icon = KuiesIconKind.Refresh,
+                    )
+                    if (report.outcome == CleaningOutcome.UNRESOLVED && clean.isShareable) {
+                        TextButton(onClick = { onShareUrl(clean.originalUrl) }) {
+                            Text("分享原始網址")
+                        }
+                    }
+                }
+
                 else -> {
                     KuiesPrimaryButton(
                         text = if (state.isShortening) "建立中…" else "建立短網址",
@@ -206,51 +190,56 @@ fun ResultScreen(
                     )
                     Spacer(Modifier.height(Spacing.sm))
                     KuiesSecondaryButton(
-                        text = "複製此網址",
-                        onClick = { onCopyUrl(clean.cleanedUrl) },
+                        text = "複製清理後網址",
+                        onClick = { onCopyUrl(targetUrl ?: clean.cleanedUrl) },
                         icon = KuiesIconKind.Copy,
                     )
                 }
             }
+        }
+    }
+}
 
-            Spacer(Modifier.height(Spacing.xl))
-            StatusSummaryCard(
-                icon = icon,
-                label = "清理狀態",
-                title = statusTitle,
-                subtitle = statusSubtitle,
-                onClick = { detailsExpanded = !detailsExpanded },
+@Composable
+private fun ShortenErrorCard(
+    error: ShortenError,
+    onRetryShorten: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.errorContainer,
+    ) {
+        Column(modifier = Modifier.padding(Spacing.md)) {
+            Text(
+                text = stringResource(error.messageRes()),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
             )
-
-            DetailsDisclosure(
-                expanded = detailsExpanded,
-                onToggle = { detailsExpanded = !detailsExpanded },
-            ) {
-                DetailRow("原始網址", clean.originalUrl)
-                DetailRow("清理後網址", clean.cleanedUrl)
-                DetailRow(
-                    "移除的參數 ($removedCount)",
-                    removedNames.ifEmpty { listOf("無") }.joinToString("、"),
-                )
-                if (short != null) {
-                    DetailRow("解析狀態", resolutionLabel(short))
-                    DetailRow("清理狀態", cleaningLabel(short))
-                    if (state.showTechnicalInfo) {
-                        DetailRow("processing_status", short.processingStatus)
-                        DetailRow("resolution_status", short.resolutionStatus)
-                        DetailRow("cleaning_status", short.cleaningStatus)
-                        short.cleaningRulesVersion?.let { DetailRow("清理規則版本", it) }
-                        short.cleaningScope?.let { DetailRow("清理範圍", it) }
-                    }
-                    val warningLabels = short.warnings.mapNotNull { warning ->
-                        warningLabel(warning)
-                    }
-                    if (warningLabels.isNotEmpty()) {
-                        DetailRow("提醒", warningLabels.joinToString("、"))
-                    }
-                }
+            if (error.isRetryable()) {
+                TextButton(onClick = onRetryShorten) { Text("重試") }
             }
         }
+    }
+}
+
+@Composable
+private fun TechnicalDetails(
+    short: ShortenResponse,
+    showTechnicalInfo: Boolean,
+) {
+    DetailRow("解析狀態", resolutionLabel(short))
+    DetailRow("清理狀態", cleaningLabel(short))
+    if (showTechnicalInfo) {
+        DetailRow("processing_status", short.processingStatus)
+        DetailRow("resolution_status", short.resolutionStatus)
+        DetailRow("cleaning_status", short.cleaningStatus)
+        short.cleaningRulesVersion?.let { DetailRow("清理規則版本", it) }
+        short.cleaningScope?.let { DetailRow("清理範圍", it) }
+    }
+    val warningLabels = short.warnings.mapNotNull { warning -> warningLabel(warning) }
+    if (warningLabels.isNotEmpty()) {
+        DetailRow("提醒", warningLabels.joinToString("、"))
     }
 }
 
